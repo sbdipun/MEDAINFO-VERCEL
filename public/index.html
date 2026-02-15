@@ -940,17 +940,17 @@
                             summary += `📁 Format: ${track.Format || 'Unknown'}\n`;
                             summary += `⏱️  Duration: ${track.Duration || 'Unknown'} seconds\n`;
                             summary += `💾 Size: ${this.formatBytes(parseInt(track.FileSize) || 0)}\n`;
-                            summary += `📊 Bit Rate: ${track.OverallBitRate || 'Unknown'} bps\n`;
+                            summary += `📊 Bit Rate: ${MediaInfoFormatter.formatBitrate(parseFloat(track.OverallBitRate) || 0)}\n`;
                         } else if (type === 'Video') {
                             summary += `🎬 Codec: ${track.Format || 'Unknown'}\n`;
                             summary += `📐 Resolution: ${track.Width || '?'}x${track.Height || '?'}\n`;
                             summary += `⚡ Frame Rate: ${track.FrameRate || 'Unknown'} fps\n`;
-                            summary += `📊 Bit Rate: ${track.BitRate || 'Unknown'} bps\n`;
+                            summary += `📊 Bit Rate: ${track.BitRate ? MediaInfoFormatter.formatBitrate(parseFloat(track.BitRate)) : 'Unknown'}\n`;
                         } else if (type === 'Audio') {
                             summary += `🎵 Codec: ${track.Format || 'Unknown'}\n`;
                             summary += `🔊 Channels: ${track.Channels || 'Unknown'}\n`;
                             summary += `🎚️  Sample Rate: ${track.SamplingRate || 'Unknown'} Hz\n`;
-                            summary += `📊 Bit Rate: ${track.BitRate || 'Unknown'} bps\n`;
+                            summary += `📊 Bit Rate: ${MediaInfoFormatter.formatBitrate(parseFloat(track.BitRate) || 0)}\n`;
                         } else if (type === 'Text') {
                             summary += `📝 Format: ${track.Format || 'Unknown'}\n`;
                             summary += `🌐 Language: ${MediaInfoFormatter.formatLanguage(track.Language) || 'Unknown'}\n`;
