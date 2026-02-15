@@ -11,15 +11,14 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  // Set CORS headers
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   // Handle preflight
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
   // Only allow POST
@@ -73,12 +72,6 @@ export default async function handler(req, res) {
       });
     }
     
-    if (error.code === 'ERR_INVALID_URL') {
-      return res.status(400).json({ 
-        error: 'Invalid URL provided.' 
-      });
-    }
-
     return res.status(500).json({ 
       error: error.message || 'Failed to analyze media file'
     });
@@ -91,13 +84,13 @@ async function downloadFirst10MB(url) {
   let downloaded = 0;
 
   try {
-    // First try with range header
+    // Try with Range header first
     const response = await fetch(url, {
       headers: {
         'Range': `bytes=0-${maxSize - 1}`,
         'User-Agent': 'Mozilla/5.0 (compatible; MediaInfo-Bot/1.0)'
       },
-      timeout: 30000 // 30 second timeout
+      timeout: 30000
     });
 
     if (!response.ok && response.status !== 206) {
@@ -120,7 +113,8 @@ async function downloadFirst10MB(url) {
         const { done, value } = await reader.read();
         if (done) break;
         
-        const chunk = value.slice(0, maxSize - downloaded);
+        const remaining = maxSize - downloaded;
+        const chunk = value.slice(0, Math.min(value.length, remaining));
         chunks.push(chunk);
         downloaded += chunk.length;
         
@@ -143,16 +137,13 @@ async function downloadFirst10MB(url) {
       reader.releaseLock();
     }
 
-    // Check if we got any data
     if (downloaded === 0) {
       throw new Error('No data received from the URL');
     }
 
     // Combine chunks
     const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    const buffer = Buffer.concat(chunks, totalLength);
-    
-    return buffer;
+    return Buffer.concat(chunks, totalLength);
 
   } catch (error) {
     console.error('Download error:', error);
@@ -170,7 +161,8 @@ async function analyzeMedia(buffer) {
 
     const result = await MediaInfoLib.analyzeData(
       () => buffer.length,
-      readChunk
+      readChunk,
+      { output: 'JSON' }
     );
 
     return JSON.parse(result);
@@ -200,8 +192,7 @@ async function getFileInfo(url, buffer) {
       size: buffer.length,
       sizeFormatted: formatBytes(buffer.length),
       contentType: contentType,
-      downloadedSize: buffer.length,
-      isPartial: buffer.length < 10485760 // Less than 10MB
+      isPartial: buffer.length < 10485760
     };
 
   } catch (error) {
@@ -209,7 +200,6 @@ async function getFileInfo(url, buffer) {
       filename: 'unknown',
       size: buffer.length,
       sizeFormatted: formatBytes(buffer.length),
-      downloadedSize: buffer.length,
       isPartial: true
     };
   }
