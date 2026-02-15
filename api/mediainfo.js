@@ -1,19 +1,18 @@
-import fetch from 'node-fetch';
 import { MediaInfo } from 'mediainfo.js';
+import fetch from 'node-fetch';
+import Busboy from 'busboy';
 
 export const config = {
   api: {
-    bodyParser: {
-      sizeLimit: '15mb'
-    },
-    responseLimit: false
+    bodyParser: false,
+    responseLimit: '50mb'
   }
 };
 
 export default async function handler(req, res) {
-  // CORS headers
+  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   // Handle preflight
@@ -21,61 +20,135 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Only allow POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({ 
-      error: 'Method not allowed. Use POST.' 
-    });
-  }
-
   try {
-    const { url } = req.body;
+    // Handle different request types
+    if (req.method === 'POST') {
+      const contentType = req.headers['content-type'] || '';
 
-    if (!url) {
-      return res.status(400).json({ 
-        error: 'URL is required' 
+      if (contentType.includes('multipart/form-data')) {
+        // Handle file upload
+        return await handleFileUpload(req, res);
+      } else {
+        // Handle JSON with URL
+        return await handleUrlAnalysis(req, res);
+      }
+    } else if (req.method === 'GET') {
+      // Health check
+      return res.status(200).json({
+        status: 'ok',
+        message: 'MediaInfo API is running',
+        version: '1.0.0',
+        endpoints: {
+          POST: '/api/mediainfo - Upload file or send JSON with URL'
+        }
       });
     }
 
-    // Validate URL
-    try {
-      new URL(url);
-    } catch {
-      return res.status(400).json({ 
-        error: 'Invalid URL format' 
-      });
-    }
-
-    // Download first 10MB
-    const buffer = await downloadFirst10MB(url);
-    
-    // Analyze with MediaInfo
-    const mediaInfo = await analyzeMedia(buffer);
-    
-    // Get file info
-    const fileInfo = await getFileInfo(url, buffer);
-
-    return res.status(200).json({
-      success: true,
-      url: url,
-      fileInfo: fileInfo,
-      data: mediaInfo
-    });
+    return res.status(405).json({ error: 'Method not allowed' });
 
   } catch (error) {
-    console.error('Analysis error:', error);
-    
-    // Handle specific errors
-    if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-      return res.status(404).json({ 
-        error: 'Unable to connect to the URL. Please check if the URL is accessible.' 
-      });
-    }
-    
-    return res.status(500).json({ 
-      error: error.message || 'Failed to analyze media file'
+    console.error('API Error:', error);
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: error.message
     });
   }
+}
+
+async function handleFileUpload(req, res) {
+  return new Promise((resolve, reject) => {
+    const busboy = Busboy({ headers: req.headers });
+    const chunks = [];
+    let filename = '';
+
+    busboy.on('file', (fieldname, file, info) => {
+      filename = info.filename;
+      file.on('data', (data) => {
+        chunks.push(data);
+      });
+    });
+
+    busboy.on('finish', async () => {
+      try {
+        const buffer = Buffer.concat(chunks);
+        
+        // Analyze with MediaInfo
+        const mediaInfo = await analyzeWithMediaInfo(buffer);
+        
+        // Get file info
+        const fileInfo = {
+          filename: filename,
+          size: buffer.length,
+          sizeFormatted: formatBytes(buffer.length),
+          type: 'upload'
+        };
+
+        resolve(res.status(200).json({
+          success: true,
+          fileInfo: fileInfo,
+          data: mediaInfo
+        }));
+      } catch (error) {
+        reject(res.status(500).json({ error: error.message }));
+      }
+    });
+
+    req.pipe(busboy);
+  });
+}
+
+async function handleUrlAnalysis(req, res) {
+  return new Promise(async (resolve) => {
+    try {
+      // Read body
+      const chunks = [];
+      req.on('data', chunk => chunks.push(chunk));
+      req.on('end', async () => {
+        try {
+          const body = JSON.parse(Buffer.concat(chunks).toString());
+          const { url } = body;
+
+          if (!url) {
+            return resolve(res.status(400).json({ error: 'URL is required' }));
+          }
+
+          // Validate URL
+          try {
+            new URL(url);
+          } catch {
+            return resolve(res.status(400).json({ error: 'Invalid URL' }));
+          }
+
+          // Download first 10MB
+          const buffer = await downloadFirst10MB(url);
+          
+          // Analyze with MediaInfo
+          const mediaInfo = await analyzeWithMediaInfo(buffer);
+          
+          // Get file info
+          const fileInfo = {
+            url: url,
+            filename: url.split('/').pop() || 'unknown',
+            size: buffer.length,
+            sizeFormatted: formatBytes(buffer.length),
+            type: 'url',
+            isPartial: buffer.length < 10 * 1024 * 1024
+          };
+
+          return resolve(res.status(200).json({
+            success: true,
+            fileInfo: fileInfo,
+            data: mediaInfo
+          }));
+
+        } catch (error) {
+          return resolve(res.status(500).json({ error: error.message }));
+        }
+      });
+    } catch (error) {
+      return resolve(res.status(500).json({ error: error.message }));
+    }
+  });
 }
 
 async function downloadFirst10MB(url) {
@@ -84,7 +157,6 @@ async function downloadFirst10MB(url) {
   let downloaded = 0;
 
   try {
-    // Try with Range header first
     const response = await fetch(url, {
       headers: {
         'Range': `bytes=0-${maxSize - 1}`,
@@ -95,7 +167,6 @@ async function downloadFirst10MB(url) {
 
     if (!response.ok && response.status !== 206) {
       // If range not supported, try regular download with limit
-      console.log('Range not supported, using regular download...');
       const regularResponse = await fetch(url, {
         timeout: 30000,
         headers: {
@@ -123,7 +194,6 @@ async function downloadFirst10MB(url) {
       
       reader.releaseLock();
     } else {
-      // Use ranged response
       const reader = response.body.getReader();
       
       while (downloaded < maxSize) {
@@ -138,12 +208,10 @@ async function downloadFirst10MB(url) {
     }
 
     if (downloaded === 0) {
-      throw new Error('No data received from the URL');
+      throw new Error('No data received');
     }
 
-    // Combine chunks
-    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    return Buffer.concat(chunks, totalLength);
+    return Buffer.concat(chunks);
 
   } catch (error) {
     console.error('Download error:', error);
@@ -151,57 +219,32 @@ async function downloadFirst10MB(url) {
   }
 }
 
-async function analyzeMedia(buffer) {
+async function analyzeWithMediaInfo(buffer) {
   try {
+    // Initialize MediaInfo
     const MediaInfoLib = await MediaInfo();
     
+    // Create read chunk function
     const readChunk = (size, offset) => {
-      return buffer.slice(offset, offset + size);
+      return buffer.slice(offset, Math.min(offset + size, buffer.length));
     };
 
+    // Analyze data
     const result = await MediaInfoLib.analyzeData(
       () => buffer.length,
       readChunk,
-      { output: 'JSON' }
+      { format: 'JSON' }
     );
 
-    return JSON.parse(result);
-
-  } catch (error) {
-    console.error('MediaInfo error:', error);
-    throw new Error(`Analysis failed: ${error.message}`);
-  }
-}
-
-async function getFileInfo(url, buffer) {
-  try {
-    const urlObj = new URL(url);
-    const filename = urlObj.pathname.split('/').pop() || 'unknown';
-    
-    // Try to get content-type from HEAD request
-    let contentType = 'application/octet-stream';
-    try {
-      const headResponse = await fetch(url, { method: 'HEAD', timeout: 5000 });
-      contentType = headResponse.headers.get('content-type') || contentType;
-    } catch {
-      // Ignore HEAD request errors
+    // Parse result
+    if (typeof result === 'string') {
+      return JSON.parse(result);
     }
-
-    return {
-      filename: filename,
-      size: buffer.length,
-      sizeFormatted: formatBytes(buffer.length),
-      contentType: contentType,
-      isPartial: buffer.length < 10485760
-    };
+    return result;
 
   } catch (error) {
-    return {
-      filename: 'unknown',
-      size: buffer.length,
-      sizeFormatted: formatBytes(buffer.length),
-      isPartial: true
-    };
+    console.error('MediaInfo analysis error:', error);
+    throw new Error(`Analysis failed: ${error.message}`);
   }
 }
 
