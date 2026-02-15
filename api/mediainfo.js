@@ -250,24 +250,54 @@ async function analyzeWithMediaInfo(buffer) {
       throw new Error('Empty or invalid buffer provided');
     }
 
-    console.log('Initializing MediaInfo with buffer size:', buffer.length);
+    console.log('=== MediaInfo Initialization Start ===');
+    console.log('Buffer size:', buffer.length);
+    console.log('Current directory:', process.cwd());
+    console.log('__dirname:', __dirname);
 
     // Initialize MediaInfo using factory function with locateFile option
     mediaInfo = await mediaInfoFactory({
       format: 'object', // Return as object (default)
       locateFile: (filename) => {
-        // Provide the path to the WASM file for Vercel serverless
         console.log('MediaInfo requesting file:', filename);
 
-        // Return the path to the WASM file in node_modules
-        const wasmPath = path.join(process.cwd(), 'node_modules', 'mediainfo.js', 'dist', filename);
-        console.log('Resolved WASM path:', wasmPath);
+        // Try multiple possible locations
+        const possiblePaths = [
+          path.join(process.cwd(), 'node_modules', 'mediainfo.js', 'dist', filename),
+          path.join(__dirname, '..', 'node_modules', 'mediainfo.js', 'dist', filename),
+          path.join('/var/task', 'node_modules', 'mediainfo.js', 'dist', filename),
+          filename
+        ];
 
-        return wasmPath;
+        console.log('Checking paths for WASM file:');
+
+        // Check if fs module is available
+        let fs;
+        try {
+          fs = require('fs'); // Use require for synchronous loading in Node.js context
+        } catch (e) {
+          console.log('fs module not available, using first path');
+          return possiblePaths[0];
+        }
+
+        for (const testPath of possiblePaths) {
+          console.log(`  - ${testPath}`);
+          try {
+            if (fs.existsSync(testPath)) {
+              console.log(`  ✓ Found at: ${testPath}`);
+              return testPath;
+            }
+          } catch (e) {
+            console.log(`  ✗ Error checking: ${e.message}`);
+          }
+        }
+
+        console.log('WASM file not found in any location, using first path as fallback');
+        return possiblePaths[0];
       }
     });
 
-    console.log('MediaInfo instance created successfully');
+    console.log('MediaInfo factory completed successfully');
 
     // Define getSize function (required by analyzeData)
     const getSize = () => buffer.length;

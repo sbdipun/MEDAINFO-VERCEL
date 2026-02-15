@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "api/mediainfo.js": {
-      "maxDuration": 30,
+      "maxDuration": 60,
       "memory": 1024,
       "includeFiles": "node_modules/mediainfo.js/dist/**"
     }
