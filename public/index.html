@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,7 +24,7 @@
             margin: 0 auto;
             background: white;
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             overflow: hidden;
         }
 
@@ -45,7 +46,7 @@
         }
 
         .badge {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.2);
             padding: 5px 15px;
             border-radius: 20px;
             font-size: 14px;
@@ -93,7 +94,8 @@
             margin-bottom: 20px;
         }
 
-        .url-input, .file-input {
+        .url-input,
+        .file-input {
             flex: 1;
             padding: 15px;
             border: 2px solid #e0e0e0;
@@ -255,7 +257,7 @@
         .format-btn.active {
             background: white;
             color: #667eea;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
 
         .media-info-box {
@@ -299,8 +301,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .footer {
@@ -330,6 +337,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -349,31 +357,18 @@
 
             <div class="input-section" id="urlTab">
                 <div class="url-input-group">
-                    <input type="url" 
-                           class="url-input" 
-                           id="urlInput" 
-                           placeholder="Enter direct media URL (MP4, MKV, MP3, etc.)"
-                           value="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">
+                    <input type="url" class="url-input" id="urlInput"
+                        placeholder="Enter direct media URL (MP4, MKV, MP3, etc.)">
                     <button class="analyze-btn" id="analyzeUrlBtn">
                         <span class="btn-text">Analyze URL</span>
                     </button>
-                </div>
-
-                <div class="sample-links">
-                    <h4>📋 Test with sample files:</h4>
-                    <span class="sample-link" data-url="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">Big Buck Bunny (MP4)</span>
-                    <span class="sample-link" data-url="https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4">Elephants Dream (MP4)</span>
-                    <span class="sample-link" data-url="https://file-examples.com/storage/fe32fc63a5812f12236a93e/2017/11/file_example_MP3_700KB.mp3">Sample MP3</span>
-                    <span class="sample-link" data-url="https://upload.wikimedia.org/wikipedia/commons/2/22/Volcano_Lava_Sample.webm">WebM Video</span>
                 </div>
             </div>
 
             <div class="input-section" id="uploadTab" style="display: none;">
                 <div class="url-input-group">
-                    <input type="file" 
-                           class="file-input" 
-                           id="fileInput" 
-                           accept="video/*,audio/*,.mp4,.mkv,.avi,.mov,.mp3,.flac,.wav">
+                    <input type="file" class="file-input" id="fileInput"
+                        accept="video/*,audio/*,.mp4,.mkv,.avi,.mov,.mp3,.flac,.wav">
                     <button class="analyze-btn" id="analyzeFileBtn">
                         <span class="btn-text">Upload & Analyze</span>
                     </button>
@@ -461,7 +456,7 @@
                 this.hideError();
                 document.getElementById('infoPanel').style.display = 'grid';
                 this.updateStatus('Contacting API...', 'info');
-                
+
                 try {
                     const response = await fetch(this.apiUrl, {
                         method: 'POST',
@@ -477,17 +472,17 @@
                     }
 
                     const result = await response.json();
-                    
+
                     this.currentData = result.data;
-                    
+
                     // Update file info
                     document.getElementById('fileName').textContent = result.fileInfo.filename;
                     document.getElementById('fileSize').textContent = result.fileInfo.sizeFormatted;
                     document.getElementById('analysisMethod').textContent = result.fileInfo.type;
-                    
+
                     this.displayResults(result.data);
                     this.updateStatus('Analysis complete!', 'success');
-                    
+
                     return result;
 
                 } catch (error) {
@@ -513,7 +508,7 @@
                 this.hideError();
                 document.getElementById('infoPanel').style.display = 'grid';
                 this.updateStatus('Uploading file...', 'info');
-                
+
                 // Update file info
                 document.getElementById('fileName').textContent = file.name;
                 document.getElementById('fileSize').textContent = this.formatBytes(file.size);
@@ -534,11 +529,11 @@
                     }
 
                     const result = await response.json();
-                    
+
                     this.currentData = result.data;
                     this.displayResults(result.data);
                     this.updateStatus('Analysis complete!', 'success');
-                    
+
                     return result;
 
                 } catch (error) {
@@ -553,10 +548,10 @@
             displayResults(data) {
                 const contentEl = document.getElementById('mediaInfoContent');
                 const activeFormat = document.querySelector('.format-btn.active').dataset.format;
-                
+
                 let displayText = '';
-                
-                switch(activeFormat) {
+
+                switch (activeFormat) {
                     case 'json':
                         displayText = JSON.stringify(data, null, 2);
                         break;
@@ -567,16 +562,16 @@
                         displayText = this.formatAsSummary(data);
                         break;
                 }
-                
+
                 contentEl.textContent = displayText;
             }
 
             formatAsTree(data, level = 0) {
                 if (!data) return '';
-                
+
                 const indent = '  '.repeat(level);
                 let result = '';
-                
+
                 if (typeof data === 'object') {
                     if (Array.isArray(data)) {
                         data.forEach((item, index) => {
@@ -596,21 +591,21 @@
                 } else {
                     result += `${indent}${data}\n`;
                 }
-                
+
                 return result;
             }
 
             formatAsSummary(data) {
                 let summary = '';
-                
+
                 try {
                     const tracks = data?.media?.track || [];
-                    
+
                     tracks.forEach(track => {
                         const type = track['@type'];
-                        
+
                         summary += `━━━ ${type} Track ━━━\n`;
-                        
+
                         if (type === 'General') {
                             summary += `📁 Format: ${track.Format || 'Unknown'}\n`;
                             summary += `⏱️  Duration: ${track.Duration || 'Unknown'} seconds\n`;
@@ -627,14 +622,14 @@
                             summary += `🎚️  Sample Rate: ${track.SamplingRate || 'Unknown'} Hz\n`;
                             summary += `📊 Bit Rate: ${track.BitRate || 'Unknown'} bps\n`;
                         }
-                        
+
                         summary += '\n';
                     });
-                    
+
                 } catch (error) {
                     summary = 'Error formatting summary: ' + error.message;
                 }
-                
+
                 return summary || 'No track information available';
             }
 
@@ -694,7 +689,7 @@
                 tab.addEventListener('click', () => {
                     tabs.forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
-                    
+
                     if (tab.dataset.tab === 'url') {
                         urlTab.style.display = 'block';
                         uploadTab.style.display = 'none';
@@ -708,7 +703,7 @@
             // URL analysis
             document.getElementById('analyzeUrlBtn').addEventListener('click', async () => {
                 const url = document.getElementById('urlInput').value.trim();
-                
+
                 if (!url) {
                     alert('Please enter a URL');
                     return;
@@ -732,7 +727,7 @@
             document.getElementById('analyzeFileBtn').addEventListener('click', async () => {
                 const fileInput = document.getElementById('fileInput');
                 const file = fileInput.files[0];
-                
+
                 if (!file) {
                     alert('Please select a file');
                     return;
@@ -757,19 +752,10 @@
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
-                    
+
                     if (client.currentData) {
                         client.displayResults(client.currentData);
                     }
-                });
-            });
-
-            // Sample links
-            document.querySelectorAll('.sample-link').forEach(link => {
-                link.addEventListener('click', () => {
-                    document.getElementById('urlInput').value = link.dataset.url;
-                    // Switch to URL tab
-                    document.querySelector('[data-tab="url"]').click();
                 });
             });
 
@@ -782,4 +768,5 @@
         });
     </script>
 </body>
+
 </html>
