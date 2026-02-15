@@ -1,22 +1,24 @@
 {
-  "name": "mediainfo-analyzer",
+  "name": "mediainfo-vercel",
   "version": "1.0.0",
-  "description": "MediaInfo.js analyzer with 10MB partial download",
+  "description": "MediaInfo.js API for Vercel",
   "main": "api/mediainfo.js",
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel deploy --prod",
-    "build": "echo 'No build required'"
+    "build": "echo 'Build complete'"
   },
   "dependencies": {
     "mediainfo.js": "^0.1.9",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "busboy": "^1.6.0",
+    "cors": "^2.8.5"
   },
   "engines": {
     "node": "18.x"
   },
-  "keywords": ["mediainfo", "video", "audio", "analyzer", "vercel", "webassembly"],
+  "keywords": ["mediainfo", "video", "audio", "vercel", "serverless"],
   "author": "Your Name",
   "license": "MIT"
 }
