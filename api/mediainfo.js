@@ -171,38 +171,64 @@ async function handleUrlAnalysis(req, res) {
 }
 
 async function downloadFirst10MB(url) {
-  const maxSize = 10 * 1024 * 1024; // 10MB
+  const maxSize = 5 * 1024 * 1024; // Reduced to 5MB for faster processing in serverless
 
   return new Promise(async (resolve, reject) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+      reject(new Error('Download timeout after 25 seconds'));
+    }, 25000); // 25 second timeout for download
+
     try {
+      console.log('Starting download from:', url);
+      console.log('Max download size:', maxSize, 'bytes');
+
       const response = await fetch(url, {
         headers: {
           'Range': `bytes=0-${maxSize - 1}`,
           'User-Agent': 'Mozilla/5.0 (compatible; MediaInfo-Bot/1.0)'
-        }
+        },
+        signal: controller.signal
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok && response.status !== 206) {
+        console.log('Range request not supported, trying full download with limit');
+
         // If range not supported, try regular download
         const regularResponse = await fetch(url, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (compatible; MediaInfo-Bot/1.0)'
-          }
+          },
+          signal: controller.signal
         });
 
         if (!regularResponse.ok) {
           throw new Error(`HTTP ${regularResponse.status}: ${regularResponse.statusText}`);
         }
 
-        return resolve(await streamToBuffer(regularResponse.body, maxSize));
+        const buffer = await streamToBuffer(regularResponse.body, maxSize);
+        clearTimeout(timeout);
+        return resolve(buffer);
       }
 
       // Range request succeeded
-      resolve(await streamToBuffer(response.body, maxSize));
+      const buffer = await streamToBuffer(response.body, maxSize);
+      clearTimeout(timeout);
+      resolve(buffer);
 
     } catch (error) {
+      clearTimeout(timeout);
       console.error('Download error:', error);
-      reject(new Error(`Download failed: ${error.message}`));
+
+      if (error.name === 'AbortError') {
+        reject(new Error('Download timed out - file may be too large or connection too slow'));
+      } else {
+        reject(new Error(`Download failed: ${error.message}`));
+      }
     }
   });
 }
@@ -212,6 +238,7 @@ async function streamToBuffer(stream, maxSize) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let downloaded = 0;
+    let lastLog = Date.now();
 
     stream.on('data', (chunk) => {
       if (downloaded < maxSize) {
@@ -220,22 +247,32 @@ async function streamToBuffer(stream, maxSize) {
         chunks.push(dataToAdd);
         downloaded += dataToAdd.length;
 
+        // Log progress every 1MB or when complete
+        const now = Date.now();
+        if (now - lastLog > 2000 || downloaded >= maxSize) {
+          console.log(`Downloaded: ${downloaded} / ${maxSize} bytes (${Math.round(downloaded / maxSize * 100)}%)`);
+          lastLog = now;
+        }
+
         // Stop reading if we've reached the limit
         if (downloaded >= maxSize) {
           stream.destroy(); // Stop the stream
+          console.log('Download limit reached, stopping stream');
         }
       }
     });
 
     stream.on('end', () => {
+      console.log('Stream ended, total downloaded:', downloaded);
       if (downloaded === 0) {
-        reject(new Error('No data received'));
+        reject(new Error('No data received from stream'));
       } else {
         resolve(Buffer.concat(chunks));
       }
     });
 
     stream.on('error', (error) => {
+      console.error('Stream error:', error);
       reject(error);
     });
   });
