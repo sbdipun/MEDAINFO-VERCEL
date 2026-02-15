@@ -686,10 +686,16 @@
             <div class="results-section">
                 <div class="results-header">
                     <h2>📊 Media Information</h2>
-                    <div class="format-selector">
-                        <button class="format-btn active" data-format="json">JSON</button>
-                        <button class="format-btn" data-format="tree">Tree View</button>
-                        <button class="format-btn" data-format="summary">Summary</button>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <div class="format-selector">
+                            <button class="format-btn active" data-format="json">JSON</button>
+                            <button class="format-btn" data-format="tree">Tree View</button>
+                            <button class="format-btn" data-format="summary">Summary</button>
+                        </div>
+                        <button class="analyze-btn" id="copyBtn" style="padding: 8px 16px; font-size: 14px;"
+                            title="Copy to clipboard">
+                            📋 Copy
+                        </button>
                     </div>
                 </div>
 
@@ -955,6 +961,25 @@
             hideError() {
                 document.getElementById('errorBox').style.display = 'none';
             }
+
+            copyToClipboard() {
+                const contentEl = document.getElementById('mediaInfoContent');
+                const text = contentEl.textContent;
+
+                navigator.clipboard.writeText(text).then(() => {
+                    const copyBtn = document.getElementById('copyBtn');
+                    const originalText = copyBtn.innerHTML;
+                    copyBtn.innerHTML = '✅ Copied!';
+                    copyBtn.style.background = '#4CAF50';
+
+                    setTimeout(() => {
+                        copyBtn.innerHTML = originalText;
+                        copyBtn.style.background = '';
+                    }, 2000);
+                }).catch(err => {
+                    this.showError('Failed to copy: ' + err.message);
+                });
+            }
         }
 
         // Initialize
@@ -1038,6 +1063,11 @@
                         client.displayResults(client.currentData);
                     }
                 });
+            });
+
+            // Copy button
+            document.getElementById('copyBtn').addEventListener('click', () => {
+                client.copyToClipboard();
             });
 
             // Enter key

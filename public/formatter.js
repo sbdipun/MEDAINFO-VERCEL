@@ -30,6 +30,23 @@ const MediaInfoFormatter = {
         'FrameRate_Nominal', 'SamplingRate_Original'
     ],
 
+    // ISO 639 Language codes mapping
+    LANGUAGE_CODES: {
+        'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German', 'it': 'Italian',
+        'pt': 'Portuguese', 'ru': 'Russian', 'ja': 'Japanese', 'zh': 'Chinese', 'ko': 'Korean',
+        'ar': 'Arabic', 'hi': 'Hindi', 'bn': 'Bengali', 'pa': 'Punjabi', 'te': 'Telugu',
+        'mr': 'Marathi', 'ta': 'Tamil', 'ur': 'Urdu', 'gu': 'Gujarati', 'kn': 'Kannada',
+        'ml': 'Malayalam', 'th': 'Thai', 'vi': 'Vietnamese', 'tr': 'Turkish', 'pl': 'Polish',
+        'uk': 'Ukrainian', 'ro': 'Romanian', 'nl': 'Dutch', 'el': 'Greek', 'cs': 'Czech',
+        'sv': 'Swedish', 'hu': 'Hungarian', 'fi': 'Finnish', 'no': 'Norwegian', 'da': 'Danish',
+        'bg': 'Bulgarian', 'hr': 'Croatian', 'sk': 'Slovak', 'sl': 'Slovenian', 'sr': 'Serbian',
+        'he': 'Hebrew', 'id': 'Indonesian', 'ms': 'Malay', 'fa': 'Persian', 'af': 'Afrikaans',
+        'sq': 'Albanian', 'am': 'Amharic', 'hy': 'Armenian', 'az': 'Azerbaijani', 'eu': 'Basque',
+        'be': 'Belarusian', 'bs': 'Bosnian', 'ca': 'Catalan', 'et': 'Estonian', 'tl': 'Filipino',
+        'ka': 'Georgian', 'is': 'Icelandic', 'ga': 'Irish', 'lv': 'Latvian', 'lt': 'Lithuanian',
+        'mk': 'Macedonian', 'mt': 'Maltese', 'mn': 'Mongolian', 'ne': 'Nepali', 'sw': 'Swahili'
+    },
+
     /**
      * Format bytes to human-readable size (KB, MB, GB, TB)
      */
@@ -97,10 +114,24 @@ const MediaInfoFormatter = {
     },
 
     /**
+     * Format language code to full name
+     */
+    formatLanguage(code) {
+        if (!code || typeof code !== 'string') return code;
+        const lowerCode = code.toLowerCase().trim();
+        return this.LANGUAGE_CODES[lowerCode] || code;
+    },
+
+    /**
      * Format a value based on its key name
      */
     formatValue(key, value) {
         if (value === null || value === undefined || value === '') return value;
+
+        // Language fields - check before numeric check
+        if (key === 'Language' || key.includes('Language')) {
+            return this.formatLanguage(value);
+        }
 
         const strVal = String(value);
 
