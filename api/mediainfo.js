@@ -137,9 +137,29 @@ async function handleUrlAnalysis(req, res) {
           } catch {
             return resolve(res.status(400).json({ error: 'Invalid URL' }));
           }
+          // Convert Google Drive links to direct download
+          let downloadUrl = url;
+          if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+            const patterns = [
+              /\/file\/d\/([a-zA-Z0-9-_]+)/,
+              /id=([a-zA-Z0-9-_]+)/,
+              /\/open\?id=([a-zA-Z0-9-_]+)/
+            ];
+            let fileId = null;
+            for (const pattern of patterns) {
+              const match = url.match(pattern);
+              if (match) {
+                fileId = match[1];
+                break;
+              }
+            }
+            if (fileId) {
+              downloadUrl = `https://gdl.anshumanpm.eu.org/direct.aspx?id=${fileId}`;
+            }
+          }
 
           // Download first 10MB
-          const { buffer, filename, fileSize } = await downloadFirst10MB(url);
+          const { buffer, filename, fileSize } = await downloadFirst10MB(downloadUrl);
 
           // Analyze with MediaInfo
           const mediaInfo = await analyzeWithMediaInfo(buffer);
