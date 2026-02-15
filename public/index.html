@@ -713,46 +713,48 @@
                 } catch (error) {
                     summary = 'Error formatting summary: ' + error.message;
                 }
+                isValidUrl(string) {
+                    try {
+                        new URL(string);
+                        return true;
+                    } catch (_) {
+                        return false;
+                    }
+                }
 
-                return summary || 'No track information available';
-            }
+                formatBytes(bytes) {
+                    if (bytes === 0) return '0 Bytes';
+                    const k = 1024;
+                    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                }
 
-            escapeHtml(text) {
-            }
+                // UI Methods
+                updateProgress(percent) {
+                    document.getElementById('progressFill').style.width = `${percent}%`;
+                }
 
-            formatBytes(bytes) {
-                if (bytes === 0) return '0 Bytes';
-                const k = 1024;
-                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-            }
+                updateStatus(status, type = 'info') {
+                    document.getElementById('analysisStatus').textContent = status;
+                    document.getElementById('statusText').textContent = status;
+                    document.getElementById('footerStatus').textContent = status;
+                }
 
-            // UI Methods
-            updateProgress(percent) {
-                document.getElementById('progressFill').style.width = `${percent}%`;
-            }
+                showProgress(show) {
+                    document.getElementById('progressContainer').style.display = show ? 'block' : 'none';
+                }
 
-            updateStatus(status, type = 'info') {
-                document.getElementById('analysisStatus').textContent = status;
-                document.getElementById('statusText').textContent = status;
-                document.getElementById('footerStatus').textContent = status;
-            }
+                showError(message) {
+                    const errorBox = document.getElementById('errorBox');
+                    errorBox.textContent = message;
+                    errorBox.style.display = 'block';
+                }
 
-            showProgress(show) {
-                document.getElementById('progressContainer').style.display = show ? 'block' : 'none';
+                hideError() {
+                    document.getElementById('errorBox').style.display = 'none';
+                }
             }
-
-            showError(message) {
-                const errorBox = document.getElementById('errorBox');
-                errorBox.textContent = message;
-                errorBox.style.display = 'block';
-            }
-
-            hideError() {
-                document.getElementById('errorBox').style.display = 'none';
-            }
-        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
