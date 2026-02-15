@@ -71,10 +71,10 @@ async function handleFileUpload(req, res) {
     busboy.on('finish', async () => {
       try {
         const buffer = Buffer.concat(chunks);
-        
+
         // Analyze with MediaInfo
         const mediaInfo = await analyzeWithMediaInfo(buffer);
-        
+
         // Get file info
         const fileInfo = {
           filename: filename,
@@ -105,7 +105,21 @@ async function handleUrlAnalysis(req, res) {
       req.on('data', chunk => chunks.push(chunk));
       req.on('end', async () => {
         try {
-          const body = JSON.parse(Buffer.concat(chunks).toString());
+          const bodyString = Buffer.concat(chunks).toString();
+          if (!bodyString) {
+            return resolve(res.status(400).json({ error: 'Empty request body' }));
+          }
+
+          let body;
+          try {
+            body = JSON.parse(bodyString);
+          } catch (parseError) {
+            return resolve(res.status(400).json({
+              error: 'Invalid JSON in request body',
+              details: parseError.message
+            }));
+          }
+
           const { url } = body;
 
           if (!url) {
@@ -121,10 +135,10 @@ async function handleUrlAnalysis(req, res) {
 
           // Download first 10MB
           const buffer = await downloadFirst10MB(url);
-          
+
           // Analyze with MediaInfo
           const mediaInfo = await analyzeWithMediaInfo(buffer);
-          
+
           // Get file info
           const fileInfo = {
             url: url,
@@ -179,31 +193,31 @@ async function downloadFirst10MB(url) {
       }
 
       const reader = regularResponse.body.getReader();
-      
+
       while (downloaded < maxSize) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const remaining = maxSize - downloaded;
         const chunk = value.slice(0, Math.min(value.length, remaining));
         chunks.push(chunk);
         downloaded += chunk.length;
-        
+
         if (downloaded >= maxSize) break;
       }
-      
+
       reader.releaseLock();
     } else {
       const reader = response.body.getReader();
-      
+
       while (downloaded < maxSize) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         chunks.push(value);
         downloaded += value.length;
       }
-      
+
       reader.releaseLock();
     }
 
@@ -221,9 +235,14 @@ async function downloadFirst10MB(url) {
 
 async function analyzeWithMediaInfo(buffer) {
   try {
+    // Validate buffer
+    if (!buffer || buffer.length === 0) {
+      throw new Error('Empty or invalid buffer provided');
+    }
+
     // Initialize MediaInfo
     const MediaInfoLib = await MediaInfo();
-    
+
     // Create read chunk function
     const readChunk = (size, offset) => {
       return buffer.slice(offset, Math.min(offset + size, buffer.length));
@@ -236,11 +255,37 @@ async function analyzeWithMediaInfo(buffer) {
       { format: 'JSON' }
     );
 
-    // Parse result
-    if (typeof result === 'string') {
-      return JSON.parse(result);
+    // Validate and parse result
+    if (!result) {
+      throw new Error('MediaInfo returned no data');
     }
-    return result;
+
+    // If result is a string, validate and parse it
+    if (typeof result === 'string') {
+      // Check if string looks like an error message (not JSON)
+      if (result.startsWith('A server') || result.startsWith('Error') || !result.trim().startsWith('{')) {
+        throw new Error(`MediaInfo error: ${result}`);
+      }
+
+      try {
+        const parsed = JSON.parse(result);
+        if (!parsed || typeof parsed !== 'object') {
+          throw new Error('Invalid MediaInfo data structure');
+        }
+        return parsed;
+      } catch (parseError) {
+        console.error('JSON Parse Error:', parseError);
+        console.error('Result string:', result.substring(0, 200));
+        throw new Error(`Failed to parse MediaInfo result: ${parseError.message}`);
+      }
+    }
+
+    // If result is already an object, validate it
+    if (typeof result === 'object') {
+      return result;
+    }
+
+    throw new Error(`Unexpected result type: ${typeof result}`);
 
   } catch (error) {
     console.error('MediaInfo analysis error:', error);
