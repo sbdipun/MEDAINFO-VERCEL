@@ -1,15 +1,16 @@
 {
   "version": 2,
   "functions": {
-    "api/analyze.js": {
+    "api/mediainfo.js": {
       "maxDuration": 30,
       "memory": 1024
     }
   },
   "routes": [
     {
-      "src": "/api/analyze",
-      "dest": "/api/analyze.js"
+      "src": "/api/mediainfo",
+      "dest": "/api/mediainfo.js",
+      "methods": ["POST", "OPTIONS"]
     },
     {
       "src": "/(.*)",
