@@ -263,18 +263,18 @@
         .media-info-box {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             border-radius: 12px;
-            padding: 25px;
-            max-height: 600px;
+            padding: 30px;
+            max-height: 700px;
             overflow-y: auto;
             font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
-            font-size: 14px;
-            line-height: 1.8;
+            font-size: 16px;
+            line-height: 2;
             border: 1px solid #2d3561;
             box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
         .media-info-box::-webkit-scrollbar {
-            width: 10px;
+            width: 12px;
         }
 
         .media-info-box::-webkit-scrollbar-track {
@@ -298,31 +298,38 @@
             word-wrap: break-word;
         }
 
-        /* Tree view styling */
+        /* Tree view styling - Classic MediaInfo look */
         .tree-key {
             color: #82aaff;
             font-weight: 600;
+            font-size: 16px;
         }
 
         .tree-value {
             color: #c3e88d;
+            font-size: 16px;
         }
 
         .tree-number {
             color: #f78c6c;
+            font-weight: 500;
+            font-size: 16px;
         }
 
         .tree-string {
             color: #c3e88d;
+            font-size: 16px;
         }
 
         .tree-bracket {
             color: #89ddff;
             font-weight: bold;
+            font-size: 16px;
         }
 
         .tree-indent {
-            color: #444;
+            color: #4a5568;
+            font-size: 16px;
         }
 
         .error-box {
@@ -473,6 +480,7 @@
         </div>
     </div>
 
+    <script src="formatter.js"></script>
     <script>
         class MediaInfoAPIClient {
             constructor() {
@@ -630,7 +638,8 @@
                                 result += `${indent}${key}:\n`;
                                 result += this.formatAsTree(value, level + 1);
                             } else {
-                                result += `${indent}${key}: ${value}\n`;
+                                const formatted = MediaInfoFormatter.formatValue(key, value);
+                                result += `${indent}${key}: ${formatted}\n`;
                             }
                         });
                     }
