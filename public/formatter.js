@@ -83,18 +83,14 @@ const MediaInfoFormatter = {
     },
 
     /**
-     * Format bitrate to human-readable (Kbps, Mbps)
+     * Format bitrate to Kbps (always in Kbps, not Mbps)
      */
     formatBitrate(bps) {
         bps = parseFloat(bps);
-        if (isNaN(bps) || bps === 0) return '0 bps';
+        if (isNaN(bps) || bps === 0) return '0 Kbps';
 
-        if (bps >= 1000000) {
-            return `${(bps / 1000000).toFixed(2)} Mbps`;
-        } else if (bps >= 1000) {
-            return `${(bps / 1000).toFixed(0)} Kbps`;
-        }
-        return `${bps} bps`;
+        const kbps = (bps / 1000).toFixed(0);
+        return `${kbps} Kbps`;
     },
 
     /**

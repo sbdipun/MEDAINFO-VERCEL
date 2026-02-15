@@ -938,7 +938,7 @@
 
                         if (type === 'General') {
                             summary += `📁 Format: ${track.Format || 'Unknown'}\n`;
-                            summary += `⏱️  Duration: ${track.Duration || 'Unknown'} seconds\n`;
+                            summary += `⏱️  Duration: ${track.Duration ? MediaInfoFormatter.formatDuration(parseFloat(track.Duration)) : 'Unknown'}\n`;
                             summary += `💾 Size: ${this.formatBytes(parseInt(track.FileSize) || 0)}\n`;
                             summary += `📊 Bit Rate: ${MediaInfoFormatter.formatBitrate(parseFloat(track.OverallBitRate) || 0)}\n`;
                         } else if (type === 'Video') {
