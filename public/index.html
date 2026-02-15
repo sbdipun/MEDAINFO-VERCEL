@@ -483,13 +483,28 @@
 
             async checkAPI() {
                 try {
-                    const response = await fetch(this.apiUrl);
+                    // Add timeout to prevent hanging
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
+                    const response = await fetch(this.apiUrl, {
+                        signal: controller.signal
+                    });
+
+                    clearTimeout(timeout);
+
                     if (response.ok) {
                         document.getElementById('statusDot').className = 'api-status status-online';
                         document.getElementById('apiStatus').innerHTML = '<span class="api-status status-online"></span> API Online';
+                    } else {
+                        document.getElementById('statusDot').className = 'api-status status-offline';
+                        document.getElementById('apiStatus').innerHTML = '<span class="api-status status-offline"></span> API Offline';
                     }
                 } catch (error) {
                     console.log('API check failed:', error);
+                    // Show offline status but don't block the UI
+                    document.getElementById('statusDot').className = 'api-status status-offline';
+                    document.getElementById('apiStatus').innerHTML = '<span class="api-status status-offline"></span> API Offline';
                 }
             }
 
