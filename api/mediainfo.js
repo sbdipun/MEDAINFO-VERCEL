@@ -171,66 +171,80 @@ async function handleUrlAnalysis(req, res) {
 }
 
 async function downloadFirst10MB(url) {
-  const maxSize = 5 * 1024 * 1024; // Reduced to 5MB for faster processing in serverless
+  const maxSize = 5 * 1024 * 1024; // 5MB for faster processing
 
-  return new Promise(async (resolve, reject) => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      controller.abort();
-      reject(new Error('Download timeout after 25 seconds'));
-    }, 25000); // 25 second timeout for download
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 45000); // 45 second timeout
 
-    try {
-      console.log('Starting download from:', url);
-      console.log('Max download size:', maxSize, 'bytes');
+  try {
+    console.log('Starting download from:', url);
+    console.log('Max download size:', maxSize, 'bytes');
 
-      const response = await fetch(url, {
+    // Try range request first
+    const response = await fetch(url, {
+      headers: {
+        'Range': `bytes=0-${maxSize - 1}`,
+        'User-Agent': 'Mozilla/5.0 (compatible; MediaInfo-Bot/1.0)'
+      },
+      signal: controller.signal
+    });
+
+    console.log('Response status:', response.status);
+    console.log('Content-Length:', response.headers.get('content-length'));
+    console.log('Accept-Ranges:', response.headers.get('accept-ranges'));
+
+    if (!response.ok && response.status !== 206) {
+      console.log('Range request failed, trying full request');
+      clearTimeout(timeout);
+
+      // Range not supported, download full file but limit size
+      const timeout2 = setTimeout(() => controller.abort(), 45000);
+
+      const fullResponse = await fetch(url, {
         headers: {
-          'Range': `bytes=0-${maxSize - 1}`,
           'User-Agent': 'Mozilla/5.0 (compatible; MediaInfo-Bot/1.0)'
         },
         signal: controller.signal
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok && response.status !== 206) {
-        console.log('Range request not supported, trying full download with limit');
-
-        // If range not supported, try regular download
-        const regularResponse = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; MediaInfo-Bot/1.0)'
-          },
-          signal: controller.signal
-        });
-
-        if (!regularResponse.ok) {
-          throw new Error(`HTTP ${regularResponse.status}: ${regularResponse.statusText}`);
-        }
-
-        const buffer = await streamToBuffer(regularResponse.body, maxSize);
-        clearTimeout(timeout);
-        return resolve(buffer);
+      if (!fullResponse.ok) {
+        throw new Error(`HTTP ${fullResponse.status}: ${fullResponse.statusText}`);
       }
 
-      // Range request succeeded
-      const buffer = await streamToBuffer(response.body, maxSize);
-      clearTimeout(timeout);
-      resolve(buffer);
+      // Use arrayBuffer for reliable download in serverless
+      console.log('Downloading with arrayBuffer...');
+      const arrayBuffer = await fullResponse.arrayBuffer();
+      console.log('Downloaded:', arrayBuffer.byteLength, 'bytes');
 
-    } catch (error) {
-      clearTimeout(timeout);
-      console.error('Download error:', error);
+      clearTimeout(timeout2);
 
-      if (error.name === 'AbortError') {
-        reject(new Error('Download timed out - file may be too large or connection too slow'));
-      } else {
-        reject(new Error(`Download failed: ${error.message}`));
-      }
+      // Limit to maxSize
+      const limitedBuffer = arrayBuffer.byteLength > maxSize
+        ? arrayBuffer.slice(0, maxSize)
+        : arrayBuffer;
+
+      return Buffer.from(limitedBuffer);
     }
-  });
+
+    // Range request succeeded - use arrayBuffer
+    console.log('Range request succeeded, downloading...');
+    const arrayBuffer = await response.arrayBuffer();
+    console.log('Downloaded:', arrayBuffer.byteLength, 'bytes');
+
+    clearTimeout(timeout);
+    return Buffer.from(arrayBuffer);
+
+  } catch (error) {
+    clearTimeout(timeout);
+    console.error('Download error:', error);
+
+    if (error.name === 'AbortError') {
+      throw new Error('Download timed out after 45 seconds - file may be too large or connection too slow');
+    }
+    throw new Error(`Download failed: ${error.message}`);
+  }
 }
 
 // Helper function to convert Node.js stream to buffer with size limit
