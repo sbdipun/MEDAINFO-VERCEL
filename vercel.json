@@ -6,15 +6,14 @@
       "memory": 1024
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/mediainfo",
-      "dest": "/api/mediainfo.js",
-      "methods": ["POST", "OPTIONS"]
+      "source": "/api/mediainfo",
+      "destination": "/api/mediainfo.js"
     },
     {
-      "src": "/(.*)",
-      "dest": "/public/index.html"
+      "source": "/(.*)",
+      "destination": "/public/index.html"
     }
   ],
   "headers": [
@@ -27,7 +26,7 @@
         },
         {
           "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, OPTIONS"
+          "value": "POST, OPTIONS"
         },
         {
           "key": "Access-Control-Allow-Headers",
@@ -35,5 +34,6 @@
         }
       ]
     }
-  ]
+  ],
+  "cleanUrls": true
 }
