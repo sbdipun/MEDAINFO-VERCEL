@@ -16,7 +16,7 @@
     "cors": "^2.8.5"
   },
   "engines": {
-    "node": "18.x"
+    "node": "20.x"
   },
   "keywords": ["mediainfo", "video", "audio", "vercel", "serverless"],
   "author": "Your Name",

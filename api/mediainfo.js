@@ -1,6 +1,11 @@
 import { MediaInfo } from 'mediainfo.js';
 import fetch from 'node-fetch';
 import Busboy from 'busboy';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const config = {
   api: {
@@ -240,8 +245,23 @@ async function analyzeWithMediaInfo(buffer) {
       throw new Error('Empty or invalid buffer provided');
     }
 
-    // Initialize MediaInfo
-    const MediaInfoLib = await MediaInfo();
+    // Initialize MediaInfo with locateFile option for Vercel serverless
+    const MediaInfoLib = await MediaInfo({
+      locateFile: (file) => {
+        // In Vercel serverless, try multiple possible locations
+        console.log('MediaInfo requesting file:', file);
+
+        // Try relative to this API file
+        const paths = [
+          path.join(__dirname, '..', 'node_modules', 'mediainfo.js', 'dist', file),
+          path.join(process.cwd(), 'node_modules', 'mediainfo.js', 'dist', file),
+          file // fallback to default
+        ];
+
+        console.log('Checking WASM paths:', paths);
+        return paths[0]; // Return first path, MediaInfo will handle if it doesn't exist
+      }
+    });
 
     // Create read chunk function
     const readChunk = (size, offset) => {
