@@ -951,6 +951,14 @@
                             summary += `🔊 Channels: ${track.Channels || 'Unknown'}\n`;
                             summary += `🎚️  Sample Rate: ${track.SamplingRate || 'Unknown'} Hz\n`;
                             summary += `📊 Bit Rate: ${track.BitRate || 'Unknown'} bps\n`;
+                        } else if (type === 'Text') {
+                            summary += `📝 Format: ${track.Format || 'Unknown'}\n`;
+                            summary += `🌐 Language: ${MediaInfoFormatter.formatLanguage(track.Language) || 'Unknown'}\n`;
+                            if (track.Compression_Mode) {
+                                summary += `📦 Compression: ${track.Compression_Mode}\n`;
+                            }
+                            summary += `⭐ Default: ${track.Default || 'No'}\n`;
+                            summary += `🔒 Forced: ${track.Forced || 'No'}\n`;
                         }
 
                         summary += '\n';
