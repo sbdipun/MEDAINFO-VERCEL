@@ -742,6 +742,10 @@
                     <div class="info-value" id="fileSize">-</div>
                 </div>
                 <div class="info-card">
+                    <div class="info-label">Overall Bitrate</div>
+                    <div class="info-value" id="overallBitrate">-</div>
+                </div>
+                <div class="info-card">
                     <div class="info-label">Status</div>
                     <div class="info-value" id="analysisStatus">Ready</div>
                 </div>
@@ -834,6 +838,15 @@
                     document.getElementById('fileSize').textContent = result.fileInfo.sizeFormatted;
                     document.getElementById('analysisMethod').textContent = result.fileInfo.type;
 
+                    // Extract overall bitrate from General track
+                    const tracks = result.data?.media?.track || [];
+                    const generalTrack = tracks.find(t => t['@type'] === 'General');
+                    if (generalTrack && generalTrack.OverallBitRate) {
+                        document.getElementById('overallBitrate').textContent = MediaInfoFormatter.formatBitrate(parseFloat(generalTrack.OverallBitRate));
+                    } else {
+                        document.getElementById('overallBitrate').textContent = '-';
+                    }
+
                     this.displayResults(result.data);
                     document.querySelector('.results-section').style.display = 'block';
                     this.updateStatus('Analysis complete!', 'success');
@@ -886,6 +899,16 @@
                     const result = await response.json();
 
                     this.currentData = result.data;
+
+                    // Extract overall bitrate from General track
+                    const tracks = result.data?.media?.track || [];
+                    const generalTrack = tracks.find(t => t['@type'] === 'General');
+                    if (generalTrack && generalTrack.OverallBitRate) {
+                        document.getElementById('overallBitrate').textContent = MediaInfoFormatter.formatBitrate(parseFloat(generalTrack.OverallBitRate));
+                    } else {
+                        document.getElementById('overallBitrate').textContent = '-';
+                    }
+
                     this.displayResults(result.data);
                     document.querySelector('.results-section').style.display = 'block';
                     this.updateStatus('Analysis complete!', 'success');
