@@ -852,7 +852,7 @@
                 contentEl.textContent = displayText;
             }
 
-            formatAsTree(data, level = 0) {
+            formatAsTree(data, level = 0, parentKey = '') {
                 if (!data) return '';
 
                 const indent = '  '.repeat(level);
@@ -860,15 +860,56 @@
 
                 if (typeof data === 'object') {
                     if (Array.isArray(data)) {
+                        // Check if this is a media track array
+                        const isTrackArray = parentKey === 'track' && data.length > 0 && data[0]['@type'];
+
                         data.forEach((item, index) => {
-                            result += `${indent}[${index}]:\n`;
-                            result += this.formatAsTree(item, level + 1);
+                            if (isTrackArray && item['@type']) {
+                                // Format track header nicely
+                                const trackType = item['@type'];
+                                const typeOrder = item['@typeorder'];
+
+                                let header = '';
+                                if (trackType === 'General') {
+                                    header = '━━━━━ General ━━━━━';
+                                } else if (trackType === 'Video') {
+                                    header = '━━━━━ Video ━━━━━';
+                                } else if (trackType === 'Audio') {
+                                    const audioNum = typeOrder || index;
+                                    header = `━━━━━ Audio #${audioNum} ━━━━━`;
+                                } else if (trackType === 'Text') {
+                                    const subNum = typeOrder || index;
+                                    header = `━━━━━ Subtitle #${subNum} ━━━━━`;
+                                } else {
+                                    header = `━━━━━ ${trackType} ━━━━━`;
+                                }
+
+                                result += `${indent}${header}\n`;
+
+                                // Format track contents, skip @type and @typeorder since we already used them
+                                Object.entries(item).forEach(([key, value]) => {
+                                    if (key !== '@type' && key !== '@typeorder') {
+                                        if (value && typeof value === 'object') {
+                                            result += `${indent}  ${key}:\n`;
+                                            result += this.formatAsTree(value, level + 2, key);
+                                        } else {
+                                            const formatted = MediaInfoFormatter.formatValue(key, value);
+                                            result += `${indent}  ${key}: ${formatted}\n`;
+                                        }
+                                    }
+                                });
+                                result += '\n';
+                            } else {
+                                // Regular array item
+                                result += `${indent}[${index}]:\n`;
+                                result += this.formatAsTree(item, level + 1, parentKey);
+                            }
                         });
                     } else {
                         Object.entries(data).forEach(([key, value]) => {
                             if (value && typeof value === 'object') {
                                 result += `${indent}${key}:\n`;
-                                result += this.formatAsTree(value, level + 1);
+                                result += this.formatAsTree(value, level + 1, key);
                             } else {
                                 const formatted = MediaInfoFormatter.formatValue(key, value);
                                 result += `${indent}${key}: ${formatted}\n`;
