@@ -139,7 +139,7 @@ async function handleUrlAnalysis(req, res) {
           }
 
           // Download first 10MB
-          const buffer = await downloadFirst10MB(url);
+          const { buffer, filename, fileSize } = await downloadFirst10MB(url);
 
           // Analyze with MediaInfo
           const mediaInfo = await analyzeWithMediaInfo(buffer);
@@ -147,11 +147,11 @@ async function handleUrlAnalysis(req, res) {
           // Get file info
           const fileInfo = {
             url: url,
-            filename: url.split('/').pop() || 'unknown',
-            size: buffer.length,
-            sizeFormatted: formatBytes(buffer.length),
+            filename: filename,
+            size: fileSize,
+            sizeFormatted: formatBytes(fileSize),
             type: 'url',
-            isPartial: buffer.length < 10 * 1024 * 1024
+            isPartial: buffer.length < fileSize
           };
 
           return resolve(res.status(200).json({
@@ -195,6 +195,35 @@ async function downloadFirst10MB(url) {
     console.log('Content-Length:', response.headers.get('content-length'));
     console.log('Accept-Ranges:', response.headers.get('accept-ranges'));
 
+    // Extract filename from Content-Disposition or URL
+    let filename = 'unknown';
+    const contentDisposition = response.headers.get('content-disposition');
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+    if (filename === 'unknown') {
+      // Extract from URL
+      const urlPath = new URL(url).pathname;
+      filename = urlPath.split('/').pop() || 'unknown';
+      // Decode URL encoding
+      filename = decodeURIComponent(filename);
+    }
+
+    // Get total file size from Content-Length or Content-Range
+    let fileSize = null;
+    const contentRange = response.headers.get('content-range');
+    if (contentRange) {
+      const match = contentRange.match(/bytes \d+-\d+\/(\d+)/);
+      if (match) fileSize = parseInt(match[1]);
+    }
+    if (!fileSize) {
+      const contentLength = response.headers.get('content-length');
+      if (contentLength) fileSize = parseInt(contentLength);
+    }
+
     if (!response.ok && response.status !== 206) {
       console.log('Range request failed, trying full request');
       clearTimeout(timeout);
@@ -213,6 +242,12 @@ async function downloadFirst10MB(url) {
         throw new Error(`HTTP ${fullResponse.status}: ${fullResponse.statusText}`);
       }
 
+      // Get filesize from full response if not already set
+      if (!fileSize) {
+        const fullContentLength = fullResponse.headers.get('content-length');
+        if (fullContentLength) fileSize = parseInt(fullContentLength);
+      }
+
       // Use arrayBuffer for reliable download in serverless
       console.log('Downloading with arrayBuffer...');
       const arrayBuffer = await fullResponse.arrayBuffer();
@@ -225,7 +260,11 @@ async function downloadFirst10MB(url) {
         ? arrayBuffer.slice(0, maxSize)
         : arrayBuffer;
 
-      return Buffer.from(limitedBuffer);
+      return {
+        buffer: Buffer.from(limitedBuffer),
+        filename,
+        fileSize: fileSize || arrayBuffer.byteLength
+      };
     }
 
     // Range request succeeded - use arrayBuffer
@@ -234,7 +273,12 @@ async function downloadFirst10MB(url) {
     console.log('Downloaded:', arrayBuffer.byteLength, 'bytes');
 
     clearTimeout(timeout);
-    return Buffer.from(arrayBuffer);
+
+    return {
+      buffer: Buffer.from(arrayBuffer),
+      filename,
+      fileSize: fileSize || arrayBuffer.byteLength
+    };
 
   } catch (error) {
     clearTimeout(timeout);
