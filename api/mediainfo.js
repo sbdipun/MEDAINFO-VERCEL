@@ -1,4 +1,4 @@
-import { MediaInfo } from 'mediainfo.js';
+import mediaInfoFactory from 'mediainfo.js';
 import fetch from 'node-fetch';
 import Busboy from 'busboy';
 import path from 'path';
@@ -239,77 +239,70 @@ async function downloadFirst10MB(url) {
 }
 
 async function analyzeWithMediaInfo(buffer) {
+  let mediaInfo = null;
+
   try {
     // Validate buffer
     if (!buffer || buffer.length === 0) {
       throw new Error('Empty or invalid buffer provided');
     }
 
-    // Initialize MediaInfo with locateFile option for Vercel serverless
-    const MediaInfoLib = await MediaInfo({
-      locateFile: (file) => {
-        // In Vercel serverless, try multiple possible locations
-        console.log('MediaInfo requesting file:', file);
+    console.log('Initializing MediaInfo with buffer size:', buffer.length);
 
-        // Try relative to this API file
-        const paths = [
-          path.join(__dirname, '..', 'node_modules', 'mediainfo.js', 'dist', file),
-          path.join(process.cwd(), 'node_modules', 'mediainfo.js', 'dist', file),
-          file // fallback to default
-        ];
+    // Initialize MediaInfo using factory function with locateFile option
+    mediaInfo = await mediaInfoFactory({
+      format: 'object', // Return as object (default)
+      locateFile: (filename) => {
+        // Provide the path to the WASM file for Vercel serverless
+        console.log('MediaInfo requesting file:', filename);
 
-        console.log('Checking WASM paths:', paths);
-        return paths[0]; // Return first path, MediaInfo will handle if it doesn't exist
+        // Return the path to the WASM file in node_modules
+        const wasmPath = path.join(process.cwd(), 'node_modules', 'mediainfo.js', 'dist', filename);
+        console.log('Resolved WASM path:', wasmPath);
+
+        return wasmPath;
       }
     });
 
-    // Create read chunk function
-    const readChunk = (size, offset) => {
-      return buffer.slice(offset, Math.min(offset + size, buffer.length));
+    console.log('MediaInfo instance created successfully');
+
+    // Define getSize function (required by analyzeData)
+    const getSize = () => buffer.length;
+
+    // Define readChunk function (required by analyzeData)
+    const readChunk = (chunkSize, offset) => {
+      const end = Math.min(offset + chunkSize, buffer.length);
+      return new Uint8Array(buffer.slice(offset, end));
     };
 
-    // Analyze data
-    const result = await MediaInfoLib.analyzeData(
-      () => buffer.length,
-      readChunk,
-      { format: 'JSON' }
-    );
+    console.log('Starting media analysis...');
 
-    // Validate and parse result
+    // Analyze data using official API
+    const result = await mediaInfo.analyzeData(getSize, readChunk);
+
+    console.log('Analysis complete, result type:', typeof result);
+
     if (!result) {
       throw new Error('MediaInfo returned no data');
     }
 
-    // If result is a string, validate and parse it
-    if (typeof result === 'string') {
-      // Check if string looks like an error message (not JSON)
-      if (result.startsWith('A server') || result.startsWith('Error') || !result.trim().startsWith('{')) {
-        throw new Error(`MediaInfo error: ${result}`);
-      }
-
-      try {
-        const parsed = JSON.parse(result);
-        if (!parsed || typeof parsed !== 'object') {
-          throw new Error('Invalid MediaInfo data structure');
-        }
-        return parsed;
-      } catch (parseError) {
-        console.error('JSON Parse Error:', parseError);
-        console.error('Result string:', result.substring(0, 200));
-        throw new Error(`Failed to parse MediaInfo result: ${parseError.message}`);
-      }
-    }
-
-    // If result is already an object, validate it
-    if (typeof result === 'object') {
-      return result;
-    }
-
-    throw new Error(`Unexpected result type: ${typeof result}`);
+    // Result is already an object when format: 'object' is used
+    return result;
 
   } catch (error) {
     console.error('MediaInfo analysis error:', error);
+    console.error('Error stack:', error.stack);
     throw new Error(`Analysis failed: ${error.message}`);
+  } finally {
+    // Always close MediaInfo instance to free resources
+    if (mediaInfo) {
+      try {
+        mediaInfo.close();
+        console.log('MediaInfo instance closed');
+      } catch (closeError) {
+        console.error('Error closing MediaInfo:', closeError);
+      }
+    }
   }
 }
 
