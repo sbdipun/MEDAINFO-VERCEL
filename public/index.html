@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaInfo Analyzer - Cloud Edition</title>
+    <style>
+        /* Same CSS as before, plus these additions */
+        .api-badge {
+            background: #4CAF50;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .deployment-info {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 MediaInfo Analyzer <span class="api-badge">Cloud Edition</span></h1>
+            <p>Serverless media analysis powered by Vercel</p>
+        </div>
+
+        <div class="content">
+            <div class="input-section">
+                <h2 style="margin-bottom: 20px; color: #333;">Enter Direct Download Link</h2>
+                
+                <div class="url-input-group">
+                    <input type="url" 
+                           class="url-input" 
+                           id="urlInput" 
+                           placeholder="https://example.com/video.mp4"
+                           value="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">
+                    <button class="analyze-btn" id="analyzeBtn">
+                        <span class="btn-text">Analyze Media</span>
+                    </button>
+                </div>
+
+                <div class="warning-box">
+                    ⚡ Downloads first 10MB only for quick analysis. Full file not required!
+                </div>
+
+                <div class="sample-links">
+                    <h4>Sample Videos:</h4>
+                    <span class="sample-link" data-url="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">Big Buck Bunny (MP4)</span>
+                    <span class="sample-link" data-url="https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4">Elephants Dream (MP4)</span>
+                    <span class="sample-link" data-url="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4">For Bigger Blazes (MP4)</span>
+                    <span class="sample-link" data-url="https://file-examples.com/storage/fe32fc63a5812f12236a93e/2017/11/file_example_MP3_700KB.mp3">Sample MP3</span>
+                </div>
+
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="status-text" id="statusText">Processing on server...</div>
+                </div>
+
+                <div class="info-box">
+                    <div class="info-item">
+                        <span class="info-label">File Info:</span>
+                        <span class="info-value" id="fileInfo">Waiting for analysis...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">File Size:</span>
+                        <span class="info-value" id="sizeInfo">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Content Type:</span>
+                        <span class="info-value" id="typeInfo">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="results-section">
+                <div class="results-header">
+                    <h2>Media Information</h2>
+                    <div class="format-selector">
+                        <button class="format-btn active" data-format="json">JSON</button>
+                        <button class="format-btn" data-format="tree">Tree View</button>
+                        <button class="format-btn" data-format="summary">Summary</button>
+                    </div>
+                </div>
+
+                <div class="media-info-box" id="mediaInfoBox">
+                    <pre id="mediaInfoContent">Enter a URL and click Analyze to see media information</pre>
+                </div>
+            </div>
+
+            <div class="error-box" id="errorBox"></div>
+
+            <div class="features">
+                <div class="feature">
+                    <h3>⚡ Serverless</h3>
+                    <p>Powered by Vercel Edge Functions</p>
+                </div>
+                <div class="feature">
+                    <h3>🔒 No Storage</h3>
+                    <p>Files processed in memory, auto-deleted</p>
+                </div>
+                <div class="feature">
+                    <h3>🌐 CORS Enabled</h3>
+                    <p>Works from any domain</p>
+                </div>
+            </div>
+
+            <div class="deployment-info">
+                Deployed on Vercel | MediaInfo.js v0.1.9 | 10MB Analysis Limit
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class MediaInfoAnalyzer {
+            constructor() {
+                this.apiUrl = '/api/analyze'; // Relative URL for Vercel
+                this.currentData = null;
+            }
+
+            async analyzeFromUrl(url) {
+                if (!this.isValidUrl(url)) {
+                    throw new Error('Please enter a valid URL');
+                }
+
+                // Reset UI
+                this.updateFileInfo('Processing...');
+                this.updateProgress(50); // Indeterminate progress
+                this.showProgress(true);
+                this.hideError();
+
+                try {
+                    // Call Vercel API
+                    const response = await fetch(this.apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ url: url })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || `HTTP ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    // Store current data
+                    this.currentData = result.data;
+                    
+                    // Update file info
+                    this.updateFileInfo(result.fileInfo.filename);
+                    this.updateSizeInfo(result.fileInfo.sizeFormatted);
+                    this.updateTypeInfo(result.fileInfo.contentType);
+                    
+                    // Display results
+                    this.displayResults(result.data);
+                    
+                    return result;
+
+                } catch (error) {
+                    this.showError('Analysis failed: ' + error.message);
+                    throw error;
+                } finally {
+                    this.showProgress(false);
+                }
+            }
+
+            displayResults(data) {
+                const contentEl = document.getElementById('mediaInfoContent');
+                const activeFormat = document.querySelector('.format-btn.active').dataset.format;
+                
+                let displayText = '';
+                
+                switch(activeFormat) {
+                    case 'json':
+                        displayText = JSON.stringify(data, null, 2);
+                        break;
+                    case 'tree':
+                        displayText = this.formatAsTree(data);
+                        break;
+                    case 'summary':
+                        displayText = this.formatAsSummary(data);
+                        break;
+                }
+                
+                contentEl.textContent = displayText;
+            }
+
+            formatAsTree(data, level = 0) {
+                if (!data) return '';
+                
+                const indent = '  '.repeat(level);
+                let result = '';
+                
+                if (typeof data === 'object') {
+                    if (Array.isArray(data)) {
+                        data.forEach((item, index) => {
+                            result += `${indent}[${index}]:\n`;
+                            result += this.formatAsTree(item, level + 1);
+                        });
+                    } else {
+                        Object.entries(data).forEach(([key, value]) => {
+                            if (value && typeof value === 'object') {
+                                result += `${indent}${key}:\n`;
+                                result += this.formatAsTree(value, level + 1);
+                            } else {
+                                result += `${indent}${key}: ${value}\n`;
+                            }
+                        });
+                    }
+                } else {
+                    result += `${indent}${data}\n`;
+                }
+                
+                return result;
+            }
+
+            formatAsSummary(data) {
+                let summary = '';
+                
+                try {
+                    const tracks = data?.media?.track || [];
+                    
+                    tracks.forEach(track => {
+                        const type = track['@type'];
+                        
+                        summary += `=== ${type} Track ===\n`;
+                        
+                        if (type === 'General') {
+                            summary += `Format: ${track.Format || 'Unknown'}\n`;
+                            summary += `Duration: ${track.Duration || 'Unknown'} seconds\n`;
+                            summary += `File Size: ${this.formatBytes(parseInt(track.FileSize) || 0)}\n`;
+                            summary += `Bit Rate: ${track.OverallBitRate || 'Unknown'}\n`;
+                        } else if (type === 'Video') {
+                            summary += `Codec: ${track.Format || 'Unknown'}\n`;
+                            summary += `Resolution: ${track.Width || '?'}x${track.Height || '?'}\n`;
+                            summary += `Frame Rate: ${track.FrameRate || 'Unknown'} fps\n`;
+                            summary += `Bit Rate: ${track.BitRate || 'Unknown'}\n`;
+                        } else if (type === 'Audio') {
+                            summary += `Codec: ${track.Format || 'Unknown'}\n`;
+                            summary += `Channels: ${track.Channels || 'Unknown'}\n`;
+                            summary += `Sample Rate: ${track.SamplingRate || 'Unknown'} Hz\n`;
+                            summary += `Bit Rate: ${track.BitRate || 'Unknown'}\n`;
+                        }
+                        
+                        summary += '\n';
+                    });
+                    
+                } catch (error) {
+                    summary = 'Error formatting summary: ' + error.message;
+                }
+                
+                return summary || 'No track information available';
+            }
+
+            isValidUrl(string) {
+                try {
+                    new URL(string);
+                    return true;
+                } catch (_) {
+                    return false;
+                }
+            }
+
+            formatBytes(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // UI Update Methods
+            updateProgress(percent) {
+                document.getElementById('progressFill').style.width = `${percent}%`;
+            }
+
+            updateFileInfo(text) {
+                document.getElementById('fileInfo').textContent = text;
+            }
+
+            updateSizeInfo(text) {
+                document.getElementById('sizeInfo').textContent = text;
+            }
+
+            updateTypeInfo(text) {
+                document.getElementById('typeInfo').textContent = text;
+            }
+
+            showProgress(show) {
+                document.getElementById('progressContainer').style.display = 
+                    show ? 'block' : 'none';
+            }
+
+            showError(message) {
+                const errorBox = document.getElementById('errorBox');
+                errorBox.textContent = message;
+                errorBox.style.display = 'block';
+            }
+
+            hideError() {
+                document.getElementById('errorBox').style.display = 'none';
+            }
+        }
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', () => {
+            const analyzer = new MediaInfoAnalyzer();
+
+            // Get DOM elements
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const urlInput = document.getElementById('urlInput');
+            const formatBtns = document.querySelectorAll('.format-btn');
+            const sampleLinks = document.querySelectorAll('.sample-link');
+
+            // Analyze button click handler
+            analyzeBtn.addEventListener('click', async () => {
+                const url = urlInput.value.trim();
+                
+                if (!url) {
+                    alert('Please enter a URL');
+                    return;
+                }
+
+                // Disable button during analysis
+                analyzeBtn.disabled = true;
+                analyzeBtn.querySelector('.btn-text').innerHTML = 
+                    '<span class="loader"></span>Analyzing...';
+
+                try {
+                    await analyzer.analyzeFromUrl(url);
+                } catch (error) {
+                    console.error('Analysis error:', error);
+                } finally {
+                    // Re-enable button
+                    analyzeBtn.disabled = false;
+                    analyzeBtn.querySelector('.btn-text').textContent = 'Analyze Media';
+                }
+            });
+
+            // Format selector handlers
+            formatBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    formatBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // Re-display with new format
+                    if (analyzer.currentData) {
+                        analyzer.displayResults(analyzer.currentData);
+                    }
+                });
+            });
+
+            // Sample link handlers
+            sampleLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    urlInput.value = link.dataset.url;
+                });
+            });
+
+            // Enter key handler
+            urlInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    analyzeBtn.click();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
