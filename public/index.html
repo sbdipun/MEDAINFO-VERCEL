@@ -706,100 +706,53 @@
                             summary += `🎚️  Sample Rate: ${track.SamplingRate || 'Unknown'} Hz\n`;
                             summary += `📊 Bit Rate: ${track.BitRate || 'Unknown'} bps\n`;
                         }
-                        return `<span class="tree-number">${value}</span>`;
-                    }
-            if (typeof value === 'boolean') {
-                        return `<span class="tree-number">${value}</span>`;
-                    }
-                    return `<span class="tree-string">${this.escapeHtml(String(value))}</span>`;
+
+                        summary += '\n';
+                    });
+
+                } catch (error) {
+                    summary = 'Error formatting summary: ' + error.message;
                 }
 
-        escapeHtml(text) {
-                    const div = document.createElement('div');
-                    div.textContent = text;
-                    return div.innerHTML;
-                }
-
-                formatAsSummary(data) {
-                    let summary = '';
-
-                    try {
-                        const tracks = data?.media?.track || [];
-
-                        tracks.forEach(track => {
-                            const type = track['@type'];
-
-                            summary += `━━━ ${type} Track ━━━\n`;
-
-                            if (type === 'General') {
-                                summary += `📁 Format: ${track.Format || 'Unknown'}\n`;
-                                summary += `⏱️  Duration: ${track.Duration || 'Unknown'} seconds\n`;
-                                summary += `💾 Size: ${this.formatBytes(parseInt(track.FileSize) || 0)}\n`;
-                                summary += `📊 Bit Rate: ${track.OverallBitRate || 'Unknown'} bps\n`;
-                            } else if (type === 'Video') {
-                                summary += `🎬 Codec: ${track.Format || 'Unknown'}\n`;
-                                summary += `📐 Resolution: ${track.Width || '?'}x${track.Height || '?'}\n`;
-                                summary += `⚡ Frame Rate: ${track.FrameRate || 'Unknown'} fps\n`;
-                                summary += `📊 Bit Rate: ${track.BitRate || 'Unknown'} bps\n`;
-                            } else if (type === 'Audio') {
-                                summary += `🎵 Codec: ${track.Format || 'Unknown'}\n`;
-                                summary += `🔊 Channels: ${track.Channels || 'Unknown'}\n`;
-                                summary += `🎚️  Sample Rate: ${track.SamplingRate || 'Unknown'} Hz\n`;
-                                summary += `📊 Bit Rate: ${track.BitRate || 'Unknown'} bps\n`;
-                            }
-
-                            summary += '\n';
-                        });
-
-                    } catch (error) {
-                        summary = 'Error formatting summary: ' + error.message;
-                    }
-
-                    return summary || 'No track information available';
-                }
-
-                isValidUrl(string) {
-                    try {
-                        new URL(string);
-                        return true;
-                    } catch (_) {
-                        return false;
-                    }
-                }
-
-                formatBytes(bytes) {
-                    if (bytes === 0) return '0 Bytes';
-                    const k = 1024;
-                    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-                    const i = Math.floor(Math.log(bytes) / Math.log(k));
-                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                }
-
-                // UI Methods
-                updateProgress(percent) {
-                    document.getElementById('progressFill').style.width = `${percent}%`;
-                }
-
-                updateStatus(status, type = 'info') {
-                    document.getElementById('analysisStatus').textContent = status;
-                    document.getElementById('statusText').textContent = status;
-                    document.getElementById('footerStatus').textContent = status;
-                }
-
-                showProgress(show) {
-                    document.getElementById('progressContainer').style.display = show ? 'block' : 'none';
-                }
-
-                showError(message) {
-                    const errorBox = document.getElementById('errorBox');
-                    errorBox.textContent = message;
-                    errorBox.style.display = 'block';
-                }
-
-                hideError() {
-                    document.getElementById('errorBox').style.display = 'none';
-                }
+                return summary || 'No track information available';
             }
+
+            escapeHtml(text) {
+            }
+
+            formatBytes(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // UI Methods
+            updateProgress(percent) {
+                document.getElementById('progressFill').style.width = `${percent}%`;
+            }
+
+            updateStatus(status, type = 'info') {
+                document.getElementById('analysisStatus').textContent = status;
+                document.getElementById('statusText').textContent = status;
+                document.getElementById('footerStatus').textContent = status;
+            }
+
+            showProgress(show) {
+                document.getElementById('progressContainer').style.display = show ? 'block' : 'none';
+            }
+
+            showError(message) {
+                const errorBox = document.getElementById('errorBox');
+                errorBox.textContent = message;
+                errorBox.style.display = 'block';
+            }
+
+            hideError() {
+                document.getElementById('errorBox').style.display = 'none';
+            }
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
