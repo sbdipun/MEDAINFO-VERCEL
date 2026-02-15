@@ -4,7 +4,6 @@
     "api/mediainfo.js": {
       "maxDuration": 30,
       "memory": 1024,
-      "runtime": "nodejs20.x",
       "includeFiles": "node_modules/mediainfo.js/dist/**"
     }
   },
