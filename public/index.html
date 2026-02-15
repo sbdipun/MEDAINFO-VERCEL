@@ -289,36 +289,73 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         .info-card {
-            background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 14px;
-            transition: all 0.2s;
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: linear-gradient(180deg, #6366f1, #8b5cf6);
+            border-radius: 3px 0 0 3px;
+        }
+
+        .info-card:nth-child(2)::before {
+            background: linear-gradient(180deg, #06b6d4, #22d3ee);
+        }
+
+        .info-card:nth-child(3)::before {
+            background: linear-gradient(180deg, #f59e0b, #fbbf24);
+        }
+
+        .info-card:nth-child(4)::before {
+            background: linear-gradient(180deg, #10b981, #34d399);
+        }
+
+        .info-card:nth-child(5)::before {
+            background: linear-gradient(180deg, #ec4899, #f472b6);
         }
 
         .info-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transform: translateY(-3px);
+            border-color: rgba(99, 102, 241, 0.6);
+            box-shadow: 0 8px 25px -5px rgba(99, 102, 241, 0.25);
+        }
+
+        .info-icon {
+            font-size: 18px;
+            margin-bottom: 8px;
+            display: block;
         }
 
         .info-label {
-            font-size: 11px;
-            color: #6b7280;
+            font-size: 10px;
+            color: #a5b4fc;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
             font-weight: 600;
             margin-bottom: 6px;
         }
 
         .info-value {
-            font-size: 16px;
-            font-weight: 600;
-            color: #111827;
+            font-size: 15px;
+            font-weight: 700;
+            color: #e0e7ff;
             word-break: break-all;
+            line-height: 1.3;
         }
 
         .results-section {
@@ -734,22 +771,27 @@
 
             <div class="info-cards" id="infoPanel" style="display: none;">
                 <div class="info-card">
+                    <span class="info-icon">📄</span>
                     <div class="info-label">Filename</div>
                     <div class="info-value" id="fileName">-</div>
                 </div>
                 <div class="info-card">
+                    <span class="info-icon">💾</span>
                     <div class="info-label">Size</div>
                     <div class="info-value" id="fileSize">-</div>
                 </div>
                 <div class="info-card">
+                    <span class="info-icon">⚡</span>
                     <div class="info-label">Overall Bitrate</div>
                     <div class="info-value" id="overallBitrate">-</div>
                 </div>
                 <div class="info-card">
+                    <span class="info-icon">✅</span>
                     <div class="info-label">Status</div>
                     <div class="info-value" id="analysisStatus">Ready</div>
                 </div>
                 <div class="info-card">
+                    <span class="info-icon">🔗</span>
                     <div class="info-label">Method</div>
                     <div class="info-value" id="analysisMethod">-</div>
                 </div>
