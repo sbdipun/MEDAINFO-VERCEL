@@ -835,6 +835,7 @@
                     document.getElementById('analysisMethod').textContent = result.fileInfo.type;
 
                     this.displayResults(result.data);
+                    document.querySelector('.results-section').style.display = 'block';
                     this.updateStatus('Analysis complete!', 'success');
 
                     return result;
@@ -886,6 +887,7 @@
 
                     this.currentData = result.data;
                     this.displayResults(result.data);
+                    document.querySelector('.results-section').style.display = 'block';
                     this.updateStatus('Analysis complete!', 'success');
 
                     return result;
