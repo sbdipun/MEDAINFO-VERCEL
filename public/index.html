@@ -838,11 +838,14 @@
                     document.getElementById('fileSize').textContent = result.fileInfo.sizeFormatted;
                     document.getElementById('analysisMethod').textContent = result.fileInfo.type;
 
-                    // Extract overall bitrate from General track
+                    // Calculate overall bitrate: (fileSize * 8) / duration
                     const tracks = result.data?.media?.track || [];
                     const generalTrack = tracks.find(t => t['@type'] === 'General');
-                    if (generalTrack && generalTrack.OverallBitRate) {
-                        document.getElementById('overallBitrate').textContent = MediaInfoFormatter.formatBitrate(parseFloat(generalTrack.OverallBitRate));
+                    const duration = generalTrack ? parseFloat(generalTrack.Duration) : 0;
+                    const fileSizeBytes = result.fileInfo.size;
+                    if (duration > 0 && fileSizeBytes > 0) {
+                        const bitrate = (fileSizeBytes * 8) / duration;
+                        document.getElementById('overallBitrate').textContent = MediaInfoFormatter.formatBitrate(bitrate);
                     } else {
                         document.getElementById('overallBitrate').textContent = '-';
                     }
@@ -900,11 +903,13 @@
 
                     this.currentData = result.data;
 
-                    // Extract overall bitrate from General track
+                    // Calculate overall bitrate: (fileSize * 8) / duration
                     const tracks = result.data?.media?.track || [];
                     const generalTrack = tracks.find(t => t['@type'] === 'General');
-                    if (generalTrack && generalTrack.OverallBitRate) {
-                        document.getElementById('overallBitrate').textContent = MediaInfoFormatter.formatBitrate(parseFloat(generalTrack.OverallBitRate));
+                    const duration = generalTrack ? parseFloat(generalTrack.Duration) : 0;
+                    if (duration > 0 && file.size > 0) {
+                        const bitrate = (file.size * 8) / duration;
+                        document.getElementById('overallBitrate').textContent = MediaInfoFormatter.formatBitrate(bitrate);
                     } else {
                         document.getElementById('overallBitrate').textContent = '-';
                     }
