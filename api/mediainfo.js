@@ -172,70 +172,73 @@ async function handleUrlAnalysis(req, res) {
 
 async function downloadFirst10MB(url) {
   const maxSize = 10 * 1024 * 1024; // 10MB
-  const chunks = [];
-  let downloaded = 0;
 
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'Range': `bytes=0-${maxSize - 1}`,
-        'User-Agent': 'Mozilla/5.0 (compatible; MediaInfo-Bot/1.0)'
-      },
-      timeout: 30000
-    });
-
-    if (!response.ok && response.status !== 206) {
-      // If range not supported, try regular download with limit
-      const regularResponse = await fetch(url, {
-        timeout: 30000,
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response = await fetch(url, {
         headers: {
+          'Range': `bytes=0-${maxSize - 1}`,
           'User-Agent': 'Mozilla/5.0 (compatible; MediaInfo-Bot/1.0)'
         }
       });
 
-      if (!regularResponse.ok) {
-        throw new Error(`HTTP ${regularResponse.status}: ${regularResponse.statusText}`);
+      if (!response.ok && response.status !== 206) {
+        // If range not supported, try regular download
+        const regularResponse = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; MediaInfo-Bot/1.0)'
+          }
+        });
+
+        if (!regularResponse.ok) {
+          throw new Error(`HTTP ${regularResponse.status}: ${regularResponse.statusText}`);
+        }
+
+        return resolve(await streamToBuffer(regularResponse.body, maxSize));
       }
 
-      const reader = regularResponse.body.getReader();
+      // Range request succeeded
+      resolve(await streamToBuffer(response.body, maxSize));
 
-      while (downloaded < maxSize) {
-        const { done, value } = await reader.read();
-        if (done) break;
+    } catch (error) {
+      console.error('Download error:', error);
+      reject(new Error(`Download failed: ${error.message}`));
+    }
+  });
+}
 
+// Helper function to convert Node.js stream to buffer with size limit
+async function streamToBuffer(stream, maxSize) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let downloaded = 0;
+
+    stream.on('data', (chunk) => {
+      if (downloaded < maxSize) {
         const remaining = maxSize - downloaded;
-        const chunk = value.slice(0, Math.min(value.length, remaining));
-        chunks.push(chunk);
-        downloaded += chunk.length;
+        const dataToAdd = chunk.slice(0, Math.min(chunk.length, remaining));
+        chunks.push(dataToAdd);
+        downloaded += dataToAdd.length;
 
-        if (downloaded >= maxSize) break;
+        // Stop reading if we've reached the limit
+        if (downloaded >= maxSize) {
+          stream.destroy(); // Stop the stream
+        }
       }
+    });
 
-      reader.releaseLock();
-    } else {
-      const reader = response.body.getReader();
-
-      while (downloaded < maxSize) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        chunks.push(value);
-        downloaded += value.length;
+    stream.on('end', () => {
+      if (downloaded === 0) {
+        reject(new Error('No data received'));
+      } else {
+        resolve(Buffer.concat(chunks));
       }
+    });
 
-      reader.releaseLock();
-    }
-
-    if (downloaded === 0) {
-      throw new Error('No data received');
-    }
-
-    return Buffer.concat(chunks);
-
-  } catch (error) {
-    console.error('Download error:', error);
-    throw new Error(`Download failed: ${error.message}`);
-  }
+    stream.on('error', (error) => {
+      reject(error);
+    });
+  });
 }
 
 async function analyzeWithMediaInfo(buffer) {
