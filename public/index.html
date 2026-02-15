@@ -949,7 +949,8 @@
                         } else if (type === 'Audio') {
                             summary += `🎵 Codec: ${track.Format || 'Unknown'}\n`;
                             summary += `🔊 Channels: ${track.Channels || 'Unknown'}\n`;
-                            summary += `🎚️  Sample Rate: ${track.SamplingRate || 'Unknown'} Hz\n`;
+                            summary += `� Language: ${MediaInfoFormatter.formatLanguage(track.Language) || 'Unknown'}\n`;
+                            summary += `�🎚️  Sample Rate: ${track.SamplingRate || 'Unknown'} Hz\n`;
                             summary += `📊 Bit Rate: ${MediaInfoFormatter.formatBitrate(parseFloat(track.BitRate) || 0)}\n`;
                         } else if (type === 'Text') {
                             summary += `📝 Format: ${track.Format || 'Unknown'}\n`;
