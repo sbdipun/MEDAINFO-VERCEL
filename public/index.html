@@ -1017,11 +1017,14 @@
                 const contentEl = document.getElementById('mediaInfoContent');
                 const activeFormat = document.querySelector('.format-btn.active').dataset.format;
 
+                // Strip creatingLibrary and @ref — only use tracks
+                const tracks = data?.media?.track || data;
+
                 let displayText = '';
 
                 switch (activeFormat) {
                     case 'tree':
-                        displayText = this.formatAsTree(data);
+                        displayText = this.formatAsTree(tracks);
                         break;
                     case 'summary':
                         displayText = this.formatAsSummary(data);
