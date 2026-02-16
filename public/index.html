@@ -845,7 +845,6 @@
                     <h2>📊 Media Information</h2>
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <div class="format-selector">
-                            <button class="format-btn" data-format="json">JSON</button>
                             <button class="format-btn active" data-format="tree">Tree View</button>
                             <button class="format-btn" data-format="summary">Summary</button>
                         </div>
@@ -1021,9 +1020,6 @@
                 let displayText = '';
 
                 switch (activeFormat) {
-                    case 'json':
-                        displayText = JSON.stringify(data, null, 2);
-                        break;
                     case 'tree':
                         displayText = this.formatAsTree(data);
                         break;
