@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MediaInfo Analyzer</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -467,6 +469,66 @@
             }
         }
 
+        /* Skeleton shimmer loader */
+        @keyframes shimmer {
+            0% {
+                background-position: -600px 0;
+            }
+
+            100% {
+                background-position: 600px 0;
+            }
+        }
+
+        .skeleton-loader {
+            display: none;
+            padding: 20px;
+        }
+
+        .skeleton-loader.active {
+            display: block;
+        }
+
+        .skeleton-line {
+            height: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #2a2a4a 25%, #3a3a5a 37%, #2a2a4a 63%);
+            background-size: 600px 100%;
+            animation: shimmer 1.4s ease-in-out infinite;
+        }
+
+        .skeleton-line.short {
+            width: 45%;
+        }
+
+        .skeleton-line.medium {
+            width: 70%;
+        }
+
+        .skeleton-line.long {
+            width: 90%;
+        }
+
+        .skeleton-line.full {
+            width: 100%;
+        }
+
+        .skeleton-header {
+            height: 16px;
+            width: 35%;
+            margin-bottom: 14px;
+            margin-top: 18px;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #3a3070 25%, #4a4090 37%, #3a3070 63%);
+            background-size: 600px 100%;
+            animation: shimmer 1.4s ease-in-out infinite;
+        }
+
+        .skeleton-header:first-child {
+            margin-top: 0;
+        }
+
         .footer {
             text-align: center;
             margin-top: 30px;
@@ -856,6 +918,28 @@
                 </div>
 
                 <div class="media-info-box" id="mediaInfoBox">
+                    <div class="skeleton-loader" id="skeletonLoader">
+                        <div class="skeleton-header"></div>
+                        <div class="skeleton-line long"></div>
+                        <div class="skeleton-line medium"></div>
+                        <div class="skeleton-line short"></div>
+                        <div class="skeleton-line long"></div>
+                        <div class="skeleton-line medium"></div>
+                        <div class="skeleton-header"></div>
+                        <div class="skeleton-line full"></div>
+                        <div class="skeleton-line long"></div>
+                        <div class="skeleton-line medium"></div>
+                        <div class="skeleton-line short"></div>
+                        <div class="skeleton-line long"></div>
+                        <div class="skeleton-line full"></div>
+                        <div class="skeleton-line medium"></div>
+                        <div class="skeleton-line short"></div>
+                        <div class="skeleton-header"></div>
+                        <div class="skeleton-line long"></div>
+                        <div class="skeleton-line medium"></div>
+                        <div class="skeleton-line short"></div>
+                        <div class="skeleton-line long"></div>
+                    </div>
                     <pre id="mediaInfoContent">⚡ Enter a URL or upload a file to analyze</pre>
                 </div>
             </div>
@@ -896,6 +980,7 @@
 
                 this.showProgress(true);
                 this.hideError();
+                this.showSkeleton(true);
                 document.getElementById('infoPanel').style.display = 'grid';
                 this.updateStatus('Contacting API...', 'info');
 
@@ -961,6 +1046,7 @@
 
                 this.showProgress(true);
                 this.hideError();
+                this.showSkeleton(true);
                 document.getElementById('infoPanel').style.display = 'grid';
                 this.updateStatus('Uploading file...', 'info');
 
@@ -1014,6 +1100,8 @@
             }
 
             displayResults(data) {
+                // Hide skeleton and show content
+                this.showSkeleton(false);
                 const contentEl = document.getElementById('mediaInfoContent');
                 const activeFormat = document.querySelector('.format-btn.active').dataset.format;
 
@@ -1182,6 +1270,20 @@
 
             showProgress(show) {
                 document.getElementById('progressContainer').style.display = show ? 'block' : 'none';
+            }
+
+            showSkeleton(show) {
+                const skeleton = document.getElementById('skeletonLoader');
+                const content = document.getElementById('mediaInfoContent');
+                const resultsSection = document.querySelector('.results-section');
+                if (show) {
+                    resultsSection.style.display = 'block';
+                    skeleton.classList.add('active');
+                    content.style.display = 'none';
+                } else {
+                    skeleton.classList.remove('active');
+                    content.style.display = 'block';
+                }
             }
 
             showError(message) {
