@@ -1043,7 +1043,7 @@
                 if (typeof data === 'object') {
                     if (Array.isArray(data)) {
                         // Check if this is a media track array
-                        const isTrackArray = parentKey === 'track' && data.length > 0 && data[0]['@type'];
+                        const isTrackArray = (parentKey === 'track' || parentKey === '') && data.length > 0 && data[0]['@type'];
 
                         data.forEach((item, index) => {
                             if (isTrackArray && item['@type']) {
