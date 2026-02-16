@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thumbnail Generator - High Quality</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 32px 24px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 1.8em;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            font-size: 0.95em;
+            opacity: 0.95;
+            line-height: 1.5;
+        }
+
+        .content {
+            padding: 32px 24px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .tab-btn {
+            padding: 12px 16px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-btn:hover {
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 0.95em;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="file"],
+        input[type="range"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        input[type="file"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input[type="range"] {
+            padding: 6px;
+            height: 8px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #764ba2;
+            transform: scale(1.1);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]::-moz-range-thumb:hover {
+            background: #764ba2;
+            transform: scale(1.1);
+        }
+
+        .slider-value {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .slider-value span {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .file-drop-zone {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .file-drop-zone:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .file-drop-zone.dragover {
+            border-color: #764ba2;
+            background: #e8ecff;
+        }
+
+        .file-drop-zone p {
+            color: #666;
+            margin: 8px 0 0 0;
+            font-size: 0.9em;
+        }
+
+        .file-drop-zone .icon {
+            font-size: 3em;
+            margin-bottom: 12px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 16px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 4px solid #f0f0f0;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .result-container {
+            margin-top: 24px;
+            display: none;
+        }
+
+        .result-container.show {
+            display: block;
+        }
+
+        .thumbnail-preview {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+            margin-bottom: 16px;
+        }
+
+        .thumbnail-preview img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(102, 126, 234, 0.4);
+        }
+
+        .alert {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert.success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .alert.error {
+            background: #fee2e2;
+            color: #7f1d1d;
+            border-left: 4px solid #ef4444;
+        }
+
+        .info-box {
+            background: #f0f9ff;
+            border-left: 4px solid #667eea;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            color: #667eea;
+        }
+
+        @media (max-width: 640px) {
+            .header {
+                padding: 24px 16px;
+            }
+
+            .header h1 {
+                font-size: 1.4em;
+            }
+
+            .content {
+                padding: 20px 16px;
+            }
+
+            .file-drop-zone {
+                padding: 20px;
+            }
+
+            .file-drop-zone .icon {
+                font-size: 2em;
+                margin-bottom: 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Thumbnail Generator</h1>
+            <p>High-Quality Video/Media Thumbnail Extraction</p>
+        </div>
+
+        <div class="content">
+            <div class="info-box">
+                <strong>📌 How it works:</strong> Upload a video/media file or provide a URL to extract a high-quality
+                thumbnail at your desired timestamp.
+            </div>
+
+            <div class="alert" id="alert"></div>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('file')">📁 Upload File</button>
+                <button class="tab-btn" onclick="switchTab('url')">🔗 From URL</button>
+            </div>
+
+            <!-- File Upload Tab -->
+            <div id="file" class="tab-content active">
+                <div class="form-group">
+                    <div class="file-drop-zone" id="dropZone">
+                        <div class="icon">📹</div>
+                        <p><strong>Click to upload</strong> or drag and drop</p>
+                        <p style="font-size: 0.85em; margin-top: 4px;">MP4, MKV, AVI, MOV, WebM, etc.</p>
+                        <input type="file" id="fileInput" style="display: none;"
+                            accept="video/*,audio/*,image/*">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="fileTimestamp">Timestamp (seconds)</label>
+                    <input type="number" id="fileTimestamp" value="0" min="0" step="0.1">
+                </div>
+
+                <div class="form-group">
+                    <label for="fileQuality">Quality: <span id="fileQualityValue">90</span>%</label>
+                    <input type="range" id="fileQuality" value="90" min="50" max="100" step="5">
+                </div>
+
+                <button onclick="generateFromFile()">Generate Thumbnail</button>
+            </div>
+
+            <!-- URL Tab -->
+            <div id="url" class="tab-content">
+                <div class="form-group">
+                    <label for="mediaUrl">Media URL</label>
+                    <input type="text" id="mediaUrl" placeholder="https://example.com/video.mp4">
+                </div>
+
+                <div class="form-group">
+                    <label for="urlTimestamp">Timestamp (seconds)</label>
+                    <input type="number" id="urlTimestamp" value="0" min="0" step="0.1">
+                </div>
+
+                <div class="form-group">
+                    <label for="urlQuality">Quality: <span id="urlQualityValue">90</span>%</label>
+                    <input type="range" id="urlQuality" value="90" min="50" max="100" step="5">
+                </div>
+
+                <button onclick="generateFromUrl()">Generate Thumbnail</button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 12px; color: #666;">Generating high-quality thumbnail...</p>
+            </div>
+
+            <div class="result-container" id="resultContainer">
+                <div class="thumbnail-preview" id="thumbnailPreview"></div>
+                <button class="download-btn" id="downloadBtn" onclick="downloadThumbnail()">⬇️ Download Thumbnail</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentThumbnailBlob = null;
+
+        // File upload handling
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+            }
+        });
+
+        // Update quality value display
+        document.getElementById('fileQuality').addEventListener('input', (e) => {
+            document.getElementById('fileQualityValue').textContent = e.target.value;
+        });
+
+        document.getElementById('urlQuality').addEventListener('input', (e) => {
+            document.getElementById('urlQualityValue').textContent = e.target.value;
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert show ${type}`;
+            setTimeout(() => alert.classList.remove('show'), 5000);
+        }
+
+        async function generateFromFile() {
+            const file = fileInput.files[0];
+            if (!file) {
+                showAlert('Please select a file', 'error');
+                return;
+            }
+
+            const timestamp = document.getElementById('fileTimestamp').value;
+            const quality = document.getElementById('fileQuality').value;
+
+            await generateThumbnail(file, timestamp, quality);
+        }
+
+        async function generateFromUrl() {
+            const url = document.getElementById('mediaUrl').value.trim();
+            if (!url) {
+                showAlert('Please enter a media URL', 'error');
+                return;
+            }
+
+            const timestamp = document.getElementById('urlTimestamp').value;
+            const quality = document.getElementById('urlQuality').value;
+
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('resultContainer').classList.remove('show');
+
+                const response = await fetch('/api/thumbnail', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url,
+                        timestamp: parseFloat(timestamp),
+                        quality: parseInt(quality)
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to generate thumbnail');
+                }
+
+                currentThumbnailBlob = await response.blob();
+                displayThumbnail();
+                showAlert('✓ Thumbnail generated successfully!', 'success');
+
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        async function generateThumbnail(file, timestamp, quality) {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('resultContainer').classList.remove('show');
+
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('timestamp', timestamp);
+                formData.append('quality', quality);
+
+                const response = await fetch('/api/thumbnail', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to generate thumbnail');
+                }
+
+                currentThumbnailBlob = await response.blob();
+                displayThumbnail();
+                showAlert('✓ Thumbnail generated successfully!', 'success');
+
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayThumbnail() {
+            const url = URL.createObjectURL(currentThumbnailBlob);
+            const preview = document.getElementById('thumbnailPreview');
+            preview.innerHTML = `<img src="${url}" alt="Generated Thumbnail">`;
+            document.getElementById('resultContainer').classList.add('show');
+        }
+
+        function downloadThumbnail() {
+            if (!currentThumbnailBlob) return;
+
+            const url = URL.createObjectURL(currentThumbnailBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `thumbnail_${Date.now()}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+
+</html>
