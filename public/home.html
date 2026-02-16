@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaInfo Suite - Tools & Utilities</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 60px;
+            animation: slideDown 0.6s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+            line-height: 1.6;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 28px;
+            margin-bottom: 40px;
+        }
+
+        .tool-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.6s ease-out;
+            animation-fill-mode: both;
+        }
+
+        .tool-card:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .tool-card:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .tool-card:hover {
+            transform: translateY(-12px);
+            box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.3);
+        }
+
+        .tool-icon {
+            font-size: 3.5em;
+            text-align: center;
+            padding: 32px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .tool-card:nth-child(2) .tool-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .tool-content {
+            padding: 28px 24px;
+        }
+
+        .tool-title {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .tool-description {
+            color: #666;
+            font-size: 0.95em;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .tool-features {
+            list-style: none;
+            margin-bottom: 24px;
+        }
+
+        .tool-features li {
+            color: #555;
+            font-size: 0.9em;
+            padding: 6px 0;
+            padding-left: 24px;
+            position: relative;
+        }
+
+        .tool-features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .tool-link {
+            display: inline-block;
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .tool-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(102, 126, 234, 0.4);
+        }
+
+        .tool-link:active {
+            transform: translateY(0);
+        }
+
+        .divider {
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            margin: 0 auto 40px;
+            border-radius: 2px;
+        }
+
+        .info-section {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.15);
+            margin-bottom: 40px;
+        }
+
+        .info-section h2 {
+            color: #333;
+            margin-bottom: 16px;
+            font-size: 1.4em;
+        }
+
+        .info-section p {
+            color: #666;
+            line-height: 1.8;
+            margin-bottom: 12px;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            padding: 24px;
+            opacity: 0.9;
+            font-size: 0.95em;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .header p {
+                font-size: 0.95em;
+            }
+
+            .tools-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .info-section {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 MediaInfo Suite</h1>
+            <p>Professional Media Tools & Utilities</p>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="tools-grid">
+            <!-- MediaInfo Analyzer Card -->
+            <div class="tool-card">
+                <div class="tool-icon">📊</div>
+                <div class="tool-content">
+                    <h3 class="tool-title">Media Info Analyzer</h3>
+                    <p class="tool-description">
+                        Analyze and extract detailed information from your media files and URLs.
+                    </p>
+                    <ul class="tool-features">
+                        <li>File upload support</li>
+                        <li>URL analysis</li>
+                        <li>Detailed metadata</li>
+                        <li>Video/Audio info</li>
+                        <li>Format detection</li>
+                    </ul>
+                    <a href="index.html" class="tool-link">📊 Open Analyzer</a>
+                </div>
+            </div>
+
+            <!-- Thumbnail Generator Card -->
+            <div class="tool-card">
+                <div class="tool-icon">🎨</div>
+                <div class="tool-content">
+                    <h3 class="tool-title">Thumbnail Generator</h3>
+                    <p class="tool-description">
+                        Generate high-quality thumbnails from videos at any timestamp.
+                    </p>
+                    <ul class="tool-features">
+                        <li>File & URL support</li>
+                        <li>Custom timestamps</li>
+                        <li>Quality control</li>
+                        <li>Drag & drop upload</li>
+                        <li>Instant download</li>
+                    </ul>
+                    <a href="thumbnail.html" class="tool-link">🎨 Open Generator</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h2>🚀 About MediaInfo Suite</h2>
+            <p>
+                MediaInfo Suite is a comprehensive collection of professional media tools designed to help you
+                analyze, extract, and generate media content with ease. Whether you need detailed metadata about your
+                files or want to create high-quality thumbnails, we've got you covered.
+            </p>
+            <p>
+                <strong>Features:</strong>
+                <span class="badge">Fast Processing</span>
+                <span class="badge">High Quality</span>
+                <span class="badge">Easy to Use</span>
+                <span class="badge">No Installation</span>
+                <span class="badge">Cloud Ready</span>
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>🌐 MediaInfo Suite - Professional Media Tools | Powered by Vercel</p>
+        </div>
+    </div>
+</body>
+
+</html>
