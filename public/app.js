@@ -1,468 +1,478 @@
-﻿
-    .tabs {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        gap: 2px;
-    }
-
-    .tab {
-        padding: 6px 10px;
-        font-size: 11px;
-        white-space: nowrap;
-    }
-
-    .sample-links {
-        margin-top: 8px;
-        padding-top: 8px;
-    }
-
-    .sample-link {
-        padding: 4px 8px;
-        font-size: 10px;
-    }
-
-    .error-box {
-        padding: 10px;
-        font-size: 12px;
-    }
-
-    .footer {
-        font-size: 10px;
-        padding: 10px;
-        margin-top: 12px;
-    }
-}
-    </style>
-</head>
-
-<body>
-    <div class="container">
-<div class="header">
-    <h1>ðŸŽ¬ MediaInfo Analyzer</h1>
-    <p>Powered by mediainfo.js on Vercel Serverless</p>
-    <span class="badge" id="apiStatus">
-        <span class="api-status status-offline" id="statusDot"></span>
-        Checking Status...
-    </span>
-    <button class="theme-toggle" id="themeToggle" title="Toggle dark/light mode"></button>
-</div>
-
-<div class="content">
-    <div class="tabs">
-        <div class="tab active" data-tab="url">URL Analysis</div>
-        <div class="tab" data-tab="upload">File Upload</div>
-        <div class="tab" data-tab="thumbnails">Generate Thumbnails</div>
-    </div>
-
-    <div class="input-section" id="urlTab">
-        <div class="url-input-group">
-            <input type="url" class="url-input" id="urlInput"
-                placeholder="Enter direct media URL (MP4, MKV, MP3, etc.)">
-            <button class="analyze-btn" id="analyzeUrlBtn">
-                <span class="btn-text">Analyze URL</span>
-            </button>
-        </div>
-    </div>
-
-    <div class="input-section" id="uploadTab" style="display: none;">
-        <div class="url-input-group">
-            <input type="file" class="file-input" id="fileInput"
-                accept="video/*,audio/*,.mp4,.mkv,.avi,.mov,.mp3,.flac,.wav">
-            <button class="analyze-btn" id="analyzeFileBtn">
-                <span class="btn-text">Upload & Analyze</span>
-            </button>
-        </div>
-        <p style="color: #666; font-size: 14px; margin-top: 10px;">
-            ðŸ“ Max file size: 15MB (Vercel limit)
-        </p>
-    </div>
-
-    <div class="input-section" id="thumbnailsTab" style="display: none;">
-        <div class="thumbnail-controls">
-            <div class="control-group">
-                <label class="control-label">Number of Thumbnails</label>
-                <input type="number" class="count-input" id="thumbnailCount" min="1" max="20" value="5">
-            </div>
-            <div class="control-group">
-                <label class="control-label">Generation Mode</label>
-                <div class="thumbnail-mode">
-                    <label class="radio-option">
-                        <input type="radio" name="thumbMode" value="random" checked>
-                        <label style="margin: 0;">Random</label>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="thumbMode" value="timeline">
-                        <label style="margin: 0;">Timeline</label>
-                    </label>
-                </div>
-            </div>
-        </div>
-        <div class="url-input-group">
-            <input type="file" class="file-input" id="thumbnailFileInput"
-                accept="video/*,.mp4,.mkv,.avi,.mov,.webm,.flv">
-            <button class="analyze-btn" id="generateThumbBtn">
-                <span class="btn-text">Generate Thumbnails</span>
-            </button>
-        </div>
-        <p style="color: #666; font-size: 14px; margin-top: 10px;">
-            ðŸŽ¬ Select a video file and click Generate Thumbnails
-        </p>
-        <div id="thumbnailsGrid" class="thumbnails-grid" style="display: none;"></div>
-    </div>
-
-    <div class="progress-container" id="progressContainer">
-        <div class="progress-bar">
-            <div class="progress-fill" id="progressFill"></div>
-        </div>
-        <div class="status-text" id="statusText">Processing...</div>
-    </div>
-
-    <div class="info-cards" id="infoPanel" style="display: none;">
-        <div class="info-card">
-            <span class="info-icon">ðŸ“„</span>
-            <div class="info-label">Filename</div>
-            <div class="info-value" id="fileName">-</div>
-        </div>
-        <div class="info-card">
-            <span class="info-icon">ðŸ’¾</span>
-            <div class="info-label">Size</div>
-            <div class="info-value" id="fileSize">-</div>
-        </div>
-        <div class="info-card">
-            <span class="info-icon">âš¡</span>
-            <div class="info-label">Overall Bitrate</div>
-            <div class="info-value" id="overallBitrate">-</div>
-        </div>
-        <div class="info-card">
-            <span class="info-icon">âœ…</span>
-            <div class="info-label">Status</div>
-            <div class="info-value" id="analysisStatus">Ready</div>
-        </div>
-        <div class="info-card">
-            <span class="info-icon">ðŸ”—</span>
-            <div class="info-label">Method</div>
-            <div class="info-value" id="analysisMethod">-</div>
-        </div>
-    </div>
-
-    <div class="results-section">
-        <div class="results-header">
-            <h2>ðŸ“Š Media Information</h2>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <div class="format-selector">
-                    <button class="format-btn active" data-format="tree">Tree View</button>
-                    <button class="format-btn" data-format="summary">Summary</button>
-                </div>
-                <button class="analyze-btn" id="copyBtn" style="padding: 8px 16px; font-size: 14px;"
-                    title="Copy to clipboard">
-                    ðŸ“‹ Copy
-                </button>
-            </div>
-        </div>
-
-        <div class="media-info-box" id="mediaInfoBox">
-            <div class="skeleton-loader" id="skeletonLoader">
-                <div class="skeleton-header"></div>
-                <div class="skeleton-line long"></div>
-                <div class="skeleton-line medium"></div>
-                <div class="skeleton-line short"></div>
-                <div class="skeleton-line long"></div>
-                <div class="skeleton-line medium"></div>
-                <div class="skeleton-header"></div>
-                <div class="skeleton-line full"></div>
-                <div class="skeleton-line long"></div>
-                <div class="skeleton-line medium"></div>
-                <div class="skeleton-line short"></div>
-                <div class="skeleton-line long"></div>
-                <div class="skeleton-line full"></div>
-                <div class="skeleton-line medium"></div>
-                <div class="skeleton-line short"></div>
-                <div class="skeleton-header"></div>
-                <div class="skeleton-line long"></div>
-                <div class="skeleton-line medium"></div>
-                <div class="skeleton-line short"></div>
-                <div class="skeleton-line long"></div>
-            </div>
-            <pre id="mediaInfoContent">âš¡ Enter a URL or upload a file to analyze</pre>
-        </div>
-    </div>
-
-    <div class="error-box" id="errorBox"></div>
-
-    <div class="footer">
-        <span id="footerStatus">Ready</span> | mediainfo.js v0.1.9 | Vercel Serverless
-    </div>
-</div>
-    </div>
-
-    <script src="formatter.js"></script>
-    <script>
-class MediaInfoAPIClient {
+﻿(() => {
+  class MediaInfoAPIClient {
     constructor() {
-        this.apiUrl = '/api/mediainfo';
-        this.currentData = null;
-        this.checkAPI();
+      this.apiUrl = '/api/mediainfo';
+      this.currentData = null;
+      this.checkAPI();
     }
 
     async checkAPI() {
-        try {
-            const response = await fetch(this.apiUrl);
-            if (response.ok) {
-                document.getElementById('statusDot').className = 'api-status status-online';
-                document.getElementById('apiStatus').innerHTML = '<span class="api-status status-online"></span> API Online';
-            }
-        } catch (error) {
-            console.log('API check failed:', error);
+      const statusDot = document.getElementById('statusDot');
+      const apiStatus = document.getElementById('apiStatus');
+      if (!statusDot || !apiStatus) return;
+
+      try {
+        const response = await fetch(this.apiUrl, { method: 'GET' });
+        if (response.ok) {
+          statusDot.className = 'api-status status-online';
+          apiStatus.innerHTML = '<span class="api-status status-online"></span> API Online';
+        } else {
+          statusDot.className = 'api-status status-offline';
+          apiStatus.innerHTML = '<span class="api-status status-offline"></span> API Offline';
         }
+      } catch (_error) {
+        statusDot.className = 'api-status status-offline';
+        apiStatus.innerHTML = '<span class="api-status status-offline"></span> API Offline';
+      }
     }
 
     async analyzeFromUrl(url) {
-        if (!this.isValidUrl(url)) {
-            throw new Error('Please enter a valid URL');
+      if (!this.isValidUrl(url)) {
+        throw new Error('Please enter a valid URL.');
+      }
+
+      this.showProgress(true, 'Analyzing URL...');
+      this.hideError();
+      this.showSkeleton(true);
+      this.showInfoPanel(true);
+      this.updateStatus('Contacting API...', 'info');
+
+      try {
+        const response = await fetch(this.apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || `HTTP ${response.status}`);
         }
 
-        this.showProgress(true);
-        this.hideError();
-        this.showSkeleton(true);
-        document.getElementById('infoPanel').style.display = 'grid';
-        this.updateStatus('Contacting API...', 'info');
+        this.currentData = result.data;
+        this.fillFileInfo(result.fileInfo || {});
+        this.displayResults(this.currentData);
+        this.updateStatus('Analysis complete!', 'success');
 
-        try {
-            const response = await fetch(this.apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ url: url })
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
-            }
-
-            const result = await response.json();
-
-            this.currentData = result.data;
-
-            // Update file info
-            document.getElementById('fileName').textContent = result.fileInfo.filename;
-            document.getElementById('fileSize').textContent = result.fileInfo.sizeFormatted;
-            document.getElementById('analysisMethod').textContent = result.fileInfo.type;
-
-            // Calculate overall bitrate: (fileSize * 8) / duration
-            const tracks = result.data?.media?.track || [];
-            const generalTrack = tracks.find(t => t['@type'] === 'General');
-            const duration = generalTrack ? parseFloat(generalTrack.Duration) : 0;
-            const fileSizeBytes = result.fileInfo.size;
-            if (duration > 0 && fileSizeBytes > 0) {
-                const bitrate = (fileSizeBytes * 8) / duration;
-                document.getElementById('overallBitrate').textContent = MediaInfoFormatter.formatBitrate(bitrate);
-            } else {
-                document.getElementById('overallBitrate').textContent = '-';
-            }
-
-            this.displayResults(result.data);
-            document.querySelector('.results-section').style.display = 'block';
-            this.updateStatus('Analysis complete!', 'success');
-
-            return result;
-
-        } catch (error) {
-            this.showError('Analysis failed: ' + error.message);
-            this.updateStatus('Failed', 'error');
-            throw error;
-        } finally {
-            this.showProgress(false);
-        }
+        return result;
+      } catch (error) {
+        this.showError(`Analysis failed: ${error.message}`);
+        this.updateStatus('Failed', 'error');
+        throw error;
+      } finally {
+        this.showProgress(false);
+      }
     }
 
     async analyzeFromFile(file) {
-        if (!file) {
-            throw new Error('Please select a file');
+      if (!file) {
+        throw new Error('Please select a file.');
+      }
+
+      if (file.size > 50 * 1024 * 1024) {
+        throw new Error('File size exceeds 50MB limit.');
+      }
+
+      this.showProgress(true, 'Uploading and analyzing file...');
+      this.hideError();
+      this.showSkeleton(true);
+      this.showInfoPanel(true);
+      this.updateStatus('Uploading file...', 'info');
+
+      const fileNameEl = document.getElementById('fileName');
+      const fileSizeEl = document.getElementById('fileSize');
+      const methodEl = document.getElementById('analysisMethod');
+      if (fileNameEl) fileNameEl.textContent = file.name;
+      if (fileSizeEl) fileSizeEl.textContent = this.formatBytes(file.size);
+      if (methodEl) methodEl.textContent = 'upload';
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(this.apiUrl, {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || `HTTP ${response.status}`);
         }
 
-        // Check file size (50MB limit)
-        if (file.size > 50 * 1024 * 1024) {
-            throw new Error('File size exceeds 50MB limit');
+        this.currentData = result.data;
+        this.fillFileInfo(result.fileInfo || {}, file.size);
+        this.displayResults(this.currentData);
+        this.updateStatus('Analysis complete!', 'success');
+
+        return result;
+      } catch (error) {
+        this.showError(`Upload failed: ${error.message}`);
+        this.updateStatus('Failed', 'error');
+        throw error;
+      } finally {
+        this.showProgress(false);
+      }
+    }
+
+    fillFileInfo(fileInfo, fallbackSize = 0) {
+      const fileNameEl = document.getElementById('fileName');
+      const fileSizeEl = document.getElementById('fileSize');
+      const methodEl = document.getElementById('analysisMethod');
+      const bitrateEl = document.getElementById('overallBitrate');
+
+      if (fileNameEl) fileNameEl.textContent = fileInfo.filename || 'Unknown';
+      if (fileSizeEl) {
+        fileSizeEl.textContent = fileInfo.sizeFormatted || this.formatBytes(fileInfo.size || fallbackSize);
+      }
+      if (methodEl) methodEl.textContent = fileInfo.type || '-';
+
+      const tracks = this.currentData?.media?.track || [];
+      const generalTrack = tracks.find((t) => t['@type'] === 'General');
+      const duration = generalTrack ? parseFloat(generalTrack.Duration) : 0;
+      const size = fileInfo.size || fallbackSize;
+
+      if (bitrateEl) {
+        if (duration > 0 && size > 0 && window.MediaInfoFormatter) {
+          bitrateEl.textContent = MediaInfoFormatter.formatBitrate((size * 8) / duration);
+        } else {
+          bitrateEl.textContent = '-';
         }
-
-        this.showProgress(true);
-        this.hideError();
-        this.showSkeleton(true);
-        document.getElementById('infoPanel').style.display = 'grid';
-        this.updateStatus('Uploading file...', 'info');
-
-        // Update file info
-        document.getElementById('fileName').textContent = file.name;
-        document.getElementById('fileSize').textContent = this.formatBytes(file.size);
-        document.getElementById('analysisMethod').textContent = 'upload';
-
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch(this.apiUrl, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
-            }
-
-            const result = await response.json();
-
-            this.currentData = result.data;
-
-            // Calculate overall bitrate: (fileSize * 8) / duration
-            const tracks = result.data?.media?.track || [];
-            const generalTrack = tracks.find(t => t['@type'] === 'General');
-            const duration = generalTrack ? parseFloat(generalTrack.Duration) : 0;
-            if (duration > 0 && file.size > 0) {
-                const bitrate = (file.size * 8) / duration;
-                document.getElementById('overallBitrate').textContent = MediaInfoFormatter.formatBitrate(bitrate);
-            } else {
-                document.getElementById('overallBitrate').textContent = '-';
-            }
-
-            this.displayResults(result.data);
-            document.querySelector('.results-section').style.display = 'block';
-            this.updateStatus('Analysis complete!', 'success');
-
-            return result;
-
-        } catch (error) {
-            this.showError('Upload failed: ' + error.message);
-            this.updateStatus('Failed', 'error');
-            throw error;
-        } finally {
-            this.showProgress(false);
-        }
+      }
     }
 
     displayResults(data) {
-        // Hide skeleton and show content
-        this.showSkeleton(false);
-        const contentEl = document.getElementById('mediaInfoContent');
-        const activeFormat = document.querySelector('.format-btn.active').dataset.format;
+      this.showSkeleton(false);
 
-        // Strip creatingLibrary and @ref â€” only use tracks
-        const tracks = data?.media?.track || data;
+      const contentEl = document.getElementById('mediaInfoContent');
+      const activeFormatBtn = document.querySelector('.format-btn.active');
+      const resultsSection = document.querySelector('.results-section');
+      if (!contentEl || !activeFormatBtn || !resultsSection) return;
 
-        let displayText = '';
+      const format = activeFormatBtn.dataset.format;
+      const tracks = data?.media?.track || data;
 
-        switch (activeFormat) {
-            case 'tree':
-                displayText = this.formatAsTree(tracks);
-                break;
-            case 'summary':
-                displayText = this.formatAsSummary(data);
-                break;
-        }
+      let text = '';
+      if (format === 'summary') {
+        text = this.formatAsSummary(data);
+      } else {
+        text = this.formatAsTree(tracks);
+      }
 
-        contentEl.textContent = displayText;
+      contentEl.textContent = text || 'No media info returned.';
+      resultsSection.style.display = 'block';
     }
 
     formatAsTree(data, level = 0, parentKey = '') {
-        if (!data) return '';
+      if (!data) return '';
 
-        const indent = '  '.repeat(level);
-        let result = '';
+      const indent = '  '.repeat(level);
+      let out = '';
 
-        if (typeof data === 'object') {
-            if (Array.isArray(data)) {
-                // Check if this is a media track array
-                const isTrackArray = (parentKey === 'track' || parentKey === '') && data.length > 0 && data[0]['@type'];
+      if (Array.isArray(data)) {
+        const isTrackArray = (parentKey === 'track' || parentKey === '') && data[0] && data[0]['@type'];
 
-                data.forEach((item, index) => {
-                    if (isTrackArray && item['@type']) {
-                        // Format track header nicely
-                        const trackType = item['@type'];
-                        const typeOrder = item['@typeorder'];
+        data.forEach((item, i) => {
+          if (isTrackArray && item['@type']) {
+            const type = item['@type'];
+            const order = item['@typeorder'] || i;
+            let title = type;
+            if (type === 'Audio') title = `Audio #${order}`;
+            if (type === 'Text') title = `Subtitle #${order}`;
 
-                        let header = '';
-                        if (trackType === 'General') {
-                            header = 'â”â”â”â”â” General â”â”â”â”â”';
-                        } else if (trackType === 'Video') {
-                            header = 'â”â”â”â”â” Video â”â”â”â”â”';
-                        } else if (trackType === 'Audio') {
-                            const audioNum = typeOrder || index;
-                            header = `â”â”â”â”â” Audio #${audioNum} â”â”â”â”â”`;
-                        } else if (trackType === 'Text') {
-                            const subNum = typeOrder || index;
-                            header = `â”â”â”â”â” Subtitle #${subNum} â”â”â”â”â”`;
-                        } else {
-                            header = `â”â”â”â”â” ${trackType} â”â”â”â”â”`;
-                        }
+            out += `${indent}----- ${title} -----\n`;
 
-                        result += `${indent}${header}\n`;
+            Object.entries(item).forEach(([key, value]) => {
+              if (key === '@type' || key === '@typeorder') return;
 
-                        // Format track contents, skip @type and @typeorder since we already used them
-                        Object.entries(item).forEach(([key, value]) => {
-                            if (key !== '@type' && key !== '@typeorder') {
-                                if (value && typeof value === 'object') {
-                                    result += `${indent}  ${key}:\n`;
-                                    result += this.formatAsTree(value, level + 2, key);
-                                } else {
-                                    const formatted = MediaInfoFormatter.formatValue(key, value);
-                                    result += `${indent}  ${key}: ${formatted}\n`;
-                                }
-                            }
-                        });
-                        result += '\n';
-                    } else {
-                        // Regular array item
-                        result += `${indent}[${index}]:\n`;
-                        result += this.formatAsTree(item, level + 1, parentKey);
-                    }
-                });
-            } else {
-                Object.entries(data).forEach(([key, value]) => {
-                    if (value && typeof value === 'object') {
-                        result += `${indent}${key}:\n`;
-                        result += this.formatAsTree(value, level + 1, key);
-                    } else {
-                        const formatted = MediaInfoFormatter.formatValue(key, value);
-                        result += `${indent}${key}: ${formatted}\n`;
-                    }
-                });
-            }
-        } else {
-            result += `${indent}${data}\n`;
-        }
+              if (value && typeof value === 'object') {
+                out += `${indent}  ${key}:\n`;
+                out += this.formatAsTree(value, level + 2, key);
+              } else {
+                out += `${indent}  ${key}: ${this.formatValue(key, value)}\n`;
+              }
+            });
+            out += '\n';
+          } else {
+            out += `${indent}[${i}]:\n`;
+            out += this.formatAsTree(item, level + 1, parentKey);
+          }
+        });
 
-        return result;
+        return out;
+      }
+
+      if (typeof data === 'object') {
+        Object.entries(data).forEach(([key, value]) => {
+          if (value && typeof value === 'object') {
+            out += `${indent}${key}:\n`;
+            out += this.formatAsTree(value, level + 1, key);
+          } else {
+            out += `${indent}${key}: ${this.formatValue(key, value)}\n`;
+          }
+        });
+        return out;
+      }
+
+      return `${indent}${data}\n`;
     }
 
     formatAsSummary(data) {
-        let summary = '';
+      const tracks = data?.media?.track || [];
+      if (!tracks.length) return 'No track summary available.';
 
+      let out = '';
+      tracks.forEach((track) => {
+        const type = track['@type'] || 'Unknown';
+        out += `--- ${type} Track ---\n`;
+
+        if (type === 'General') {
+          out += `Format: ${track.Format || 'Unknown'}\n`;
+          out += `Duration: ${track.Duration ? this.formatDuration(track.Duration) : 'Unknown'}\n`;
+          out += `Size: ${this.formatBytes(parseInt(track.FileSize || '0', 10))}\n`;
+          out += `Bit Rate: ${this.formatBitrate(track.OverallBitRate)}\n`;
+        } else if (type === 'Video') {
+          out += `Codec: ${track.Format || 'Unknown'}\n`;
+          out += `Resolution: ${track.Width || '?'}x${track.Height || '?'}\n`;
+          out += `Frame Rate: ${track.FrameRate || 'Unknown'} fps\n`;
+          out += `Bit Rate: ${this.formatBitrate(track.BitRate)}\n`;
+        } else if (type === 'Audio') {
+          out += `Codec: ${track.Format || 'Unknown'}\n`;
+          out += `Channels: ${track.Channels || 'Unknown'}\n`;
+          out += `Language: ${this.formatLanguage(track.Language)}\n`;
+          out += `Sample Rate: ${track.SamplingRate || 'Unknown'} Hz\n`;
+          out += `Bit Rate: ${this.formatBitrate(track.BitRate)}\n`;
+        } else if (type === 'Text') {
+          out += `Format: ${track.Format || 'Unknown'}\n`;
+          out += `Language: ${this.formatLanguage(track.Language)}\n`;
+        }
+
+        out += '\n';
+      });
+
+      return out;
+    }
+
+    formatValue(key, value) {
+      if (window.MediaInfoFormatter && typeof MediaInfoFormatter.formatValue === 'function') {
+        return MediaInfoFormatter.formatValue(key, value);
+      }
+      return value;
+    }
+
+    formatDuration(seconds) {
+      const n = parseFloat(seconds);
+      if (Number.isNaN(n)) return 'Unknown';
+      if (window.MediaInfoFormatter) return MediaInfoFormatter.formatDuration(n);
+
+      const hrs = Math.floor(n / 3600);
+      const mins = Math.floor((n % 3600) / 60);
+      const secs = Math.floor(n % 60);
+      return hrs > 0 ? `${hrs}h ${mins}m ${secs}s` : `${mins}m ${secs}s`;
+    }
+
+    formatBitrate(bps) {
+      const n = parseFloat(bps);
+      if (Number.isNaN(n) || n <= 0) return 'Unknown';
+      if (window.MediaInfoFormatter) return MediaInfoFormatter.formatBitrate(n);
+      return `${Math.round(n / 1000)} Kbps`;
+    }
+
+    formatLanguage(code) {
+      if (window.MediaInfoFormatter) return MediaInfoFormatter.formatLanguage(code) || 'Unknown';
+      return code || 'Unknown';
+    }
+
+    showProgress(show, text = 'Processing...') {
+      const container = document.getElementById('progressContainer');
+      const statusText = document.getElementById('statusText');
+      const fill = document.getElementById('progressFill');
+      if (!container || !statusText || !fill) return;
+
+      container.style.display = show ? 'block' : 'none';
+      statusText.textContent = text;
+      fill.style.width = show ? '70%' : '0%';
+    }
+
+    showSkeleton(show) {
+      const skeleton = document.getElementById('skeletonLoader');
+      const content = document.getElementById('mediaInfoContent');
+      if (!skeleton || !content) return;
+
+      skeleton.style.display = show ? 'block' : 'none';
+      content.style.display = show ? 'none' : 'block';
+    }
+
+    showInfoPanel(show) {
+      const panel = document.getElementById('infoPanel');
+      if (panel) panel.style.display = show ? 'grid' : 'none';
+    }
+
+    showError(message) {
+      const errorEl = document.getElementById('errorBox');
+      if (!errorEl) return;
+      errorEl.textContent = message;
+      errorEl.style.display = 'block';
+    }
+
+    hideError() {
+      const errorEl = document.getElementById('errorBox');
+      if (!errorEl) return;
+      errorEl.textContent = '';
+      errorEl.style.display = 'none';
+    }
+
+    updateStatus(message) {
+      const footerStatus = document.getElementById('footerStatus');
+      const analysisStatus = document.getElementById('analysisStatus');
+      if (footerStatus) footerStatus.textContent = message;
+      if (analysisStatus) analysisStatus.textContent = message;
+    }
+
+    formatBytes(bytes) {
+      const n = Number(bytes);
+      if (!Number.isFinite(n) || n <= 0) return '0 Bytes';
+      const units = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(n) / Math.log(1024));
+      return `${(n / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
+    }
+
+    isValidUrl(value) {
+      try {
+        const url = new URL(value);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+      } catch (_error) {
+        return false;
+      }
+    }
+  }
+
+  function setButtonLoading(button, loading, label) {
+    if (!button) return;
+    const textEl = button.querySelector('.btn-text');
+    button.disabled = loading;
+    if (textEl && label) {
+      textEl.textContent = loading ? 'Working...' : label;
+    }
+  }
+
+  function setupTabs() {
+    const tabs = Array.from(document.querySelectorAll('.tab'));
+    const map = {
+      url: document.getElementById('urlTab'),
+      upload: document.getElementById('uploadTab')
+    };
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.tab;
+        tabs.forEach((t) => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        Object.entries(map).forEach(([key, el]) => {
+          if (!el) return;
+          el.style.display = key === target ? 'block' : 'none';
+        });
+      });
+    });
+  }
+
+  function setupThemeToggle() {
+    const toggle = document.getElementById('themeToggle');
+    if (!toggle) return;
+
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') {
+      document.body.classList.add('dark');
+    }
+
+    toggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      const current = document.body.classList.contains('dark') ? 'dark' : 'light';
+      localStorage.setItem('theme', current);
+    });
+  }
+
+  function setupCopyButton() {
+    const copyBtn = document.getElementById('copyBtn');
+    const contentEl = document.getElementById('mediaInfoContent');
+    if (!copyBtn || !contentEl) return;
+
+    copyBtn.addEventListener('click', async () => {
+      const text = contentEl.textContent || '';
+      try {
+        await navigator.clipboard.writeText(text);
+        const previous = copyBtn.textContent;
+        copyBtn.textContent = 'Copied';
+        setTimeout(() => {
+          copyBtn.textContent = previous;
+        }, 1200);
+      } catch (_error) {
+        alert('Clipboard copy failed.');
+      }
+    });
+  }
+
+  function setupFormatButtons(client) {
+    const buttons = Array.from(document.querySelectorAll('.format-btn'));
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        buttons.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (client.currentData) {
+          client.displayResults(client.currentData);
+        }
+      });
+    });
+  }
+
+  function init() {
+    const client = new MediaInfoAPIClient();
+
+    const urlInput = document.getElementById('urlInput');
+    const analyzeUrlBtn = document.getElementById('analyzeUrlBtn');
+    const fileInput = document.getElementById('fileInput');
+    const analyzeFileBtn = document.getElementById('analyzeFileBtn');
+
+    setupTabs();
+    setupThemeToggle();
+    setupCopyButton();
+    setupFormatButtons(client);
+
+    if (analyzeUrlBtn && urlInput) {
+      analyzeUrlBtn.addEventListener('click', async () => {
+        const url = urlInput.value.trim();
+        setButtonLoading(analyzeUrlBtn, true, 'Analyze URL');
         try {
-            const tracks = data?.media?.track || [];
+          await client.analyzeFromUrl(url);
+        } catch (_error) {
+          // handled by client
+        } finally {
+          setButtonLoading(analyzeUrlBtn, false, 'Analyze URL');
+        }
+      });
 
-            tracks.forEach(track => {
-                const type = track['@type'];
+      urlInput.addEventListener('keydown', async (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        analyzeUrlBtn.click();
+      });
+    }
 
-                summary += `â”â”â” ${type} Track â”â”â”\n`;
+    if (analyzeFileBtn && fileInput) {
+      analyzeFileBtn.addEventListener('click', async () => {
+        const file = fileInput.files && fileInput.files[0];
+        setButtonLoading(analyzeFileBtn, true, 'Upload & Analyze');
+        try {
+          await client.analyzeFromFile(file);
+        } catch (_error) {
+          // handled by client
+        } finally {
+          setButtonLoading(analyzeFileBtn, false, 'Upload & Analyze');
+        }
+      });
+    }
+  }
 
-                if (type === 'General') {
-                    summary += `ðŸ“ Format: ${track.Format || 'Unknown'}\n`;
-                    summary += `â±ï¸  Duration: ${track.Duration ? MediaInfoFormatter.formatDuration(parseFloat(track.Duration)) : 'Unknown'}\n`;
-                    summary += `ðŸ’¾ Size: ${this.formatBytes(parseInt(track.FileSize) || 0)}\n`;
-                    summary += `ðŸ“Š Bit Rate: ${MediaInfoFormatter.formatBitrate(parseFloat(track.OverallBitRate) || 0)}\n`;
-                } else if (type === 'Video') {
-                    summary += `ðŸŽ¬ Codec: ${track.Format || 'Unknown'}\n`;
-                    summary += `ðŸ“ Resolution: ${track.Width || '?'}x${track.Height || '?'}\n`;
-                    summary += `âš¡ Frame Rate: ${track.FrameRate || 'Unknown'} fps\n`;
-                    summary += `ðŸ“Š Bit Rate: ${track.BitRate ? MediaInfoFormatter.formatBitrate(parseFloat(track.BitRate)) : 'Unknown'}\n`;
-                } else if (type === 'Audio') {
-                    summary += `ðŸŽµ Codec: ${track.Format || 'Unknown'}\n`;
-                    summary += `ðŸ”Š Channels: ${track.Channels || 'Unknown'}\n`;
-                    summary += `ï¿½ Language: ${MediaInfoFormatter.formatLanguage(track.Language) || 'Unknown'}\n`;
-                    summary += `ï¿½ðŸŽšï¸  Sample Rate: ${track.SamplingRate || 'Unknown'} Hz\n`;
-                    summary += `ðŸ“Š Bit Rate: ${MediaInfoFormatter.formatBitrate(parseFloat(track.BitRate) || 0)}\n`;
-                } else if (type === 'Text') {
-                    summary += `ðŸ“ Format: ${track.Format || 'Unknown'}\n`;
-                    summary += `ðŸŒ Language: ${MediaInfoFormatter.formatLanguage(track.Language) || 'Unknown'}\n`;
+  document.addEventListener('DOMContentLoaded', init);
+})();
