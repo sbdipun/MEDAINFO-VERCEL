@@ -664,24 +664,24 @@ async function probeDurationSecondsFromUrl(url) {
 async function extractThumbnailFromUrl(url, seconds) {
   const tmpDir = os.tmpdir();
   const id = crypto.randomBytes(8).toString('hex');
-  const outPath = path.join(tmpDir, `thumb-${id}.jpg`);
+  const outPath = path.join(tmpDir, `thumb-${id}.png`);
 
   try {
-    // -ss before -i for faster seeks when possible. Not all HTTP servers support it.
+    // Keep high fidelity output: PNG frame with accurate seek and no forced downscale.
     await runFfmpeg([
       '-hide_banner',
       '-loglevel', 'error',
-      '-ss', String(seconds),
       '-i', url,
+      '-ss', String(seconds),
       '-frames:v', '1',
-      '-vf', 'scale=min(480\\,iw):-1',
-      '-q:v', '3',
+      '-vf', 'scale=min(1280\\,iw):-1:flags=lanczos',
+      '-compression_level', '2',
       '-y',
       outPath
     ]);
 
     const buf = await fs.readFile(outPath);
-    return `data:image/jpeg;base64,${buf.toString('base64')}`;
+    return `data:image/png;base64,${buf.toString('base64')}`;
   } finally {
     try {
       await fs.unlink(outPath);

@@ -114,6 +114,22 @@ body {
     background: white;
 }
 
+.thumb-count-input {
+    width: 88px;
+    padding: 10px 10px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    background: white;
+}
+
+.thumb-count-input:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
 .url-input:focus {
     outline: none;
     border-color: #6366f1;
@@ -603,6 +619,12 @@ body.dark .input-section {
 
 body.dark .url-input,
 body.dark .file-input {
+    background: #13112b;
+    border-color: #2d2b5e;
+    color: #e0e7ff;
+}
+
+body.dark .thumb-count-input {
     background: #13112b;
     border-color: #2d2b5e;
     color: #e0e7ff;

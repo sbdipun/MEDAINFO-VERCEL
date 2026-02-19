@@ -68,6 +68,7 @@
       if (!this.isValidUrl(url)) {
         throw new Error('Please enter a valid URL.');
       }
+      const safeCount = Math.max(1, Math.min(8, parseInt(count, 10) || 5));
 
       this.showProgress(true, 'Generating thumbnails...');
       this.hideError();
@@ -80,7 +81,7 @@
           body: JSON.stringify({
             action: 'generateThumbnails',
             url,
-            count,
+            count: safeCount,
             mode: 'random'
           })
         });
@@ -496,7 +497,7 @@
       download.addEventListener('click', () => {
         const a = document.createElement('a');
         a.href = t.data;
-        a.download = `thumbnail-${t.index || 0}.jpg`;
+        a.download = `thumbnail-${t.index || 0}.png`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -515,6 +516,7 @@
     const client = new MediaInfoAPIClient();
 
     const urlInput = document.getElementById('urlInput');
+    const thumbCountInput = document.getElementById('thumbCountInput');
     const analyzeUrlBtn = document.getElementById('analyzeUrlBtn');
     const thumbUrlBtn = document.getElementById('thumbUrlBtn');
     const fileInput = document.getElementById('fileInput');
@@ -549,9 +551,10 @@
     if (thumbUrlBtn && urlInput) {
       thumbUrlBtn.addEventListener('click', async () => {
         const url = urlInput.value.trim();
+        const thumbCount = thumbCountInput ? thumbCountInput.value : 5;
         setButtonLoading(thumbUrlBtn, true, 'Thumbnails');
         try {
-          const thumbnails = await client.generateThumbnailsFromUrl(url, 5);
+          const thumbnails = await client.generateThumbnailsFromUrl(url, thumbCount);
           renderThumbnails(thumbnails);
           client.updateStatus('Thumbnails generated!', 'success');
         } catch (_error) {
