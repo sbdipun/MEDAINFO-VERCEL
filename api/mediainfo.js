@@ -47,7 +47,7 @@ export default async function handler(req, res) {
         const bodyString = bodyBuffer.toString();
         const bodyObj = JSON.parse(bodyString);
         
-        if (bodyObj.action === 'generateThumbnails') {
+        if (bodyObj.action === 'generateThumbnails' || bodyObj.action === 'compareThumbnails') {
           // Reset request for thumbnail handling
           req.headers['content-type'] = 'application/json';
           return await handleThumbnailGeneration(bodyBuffer, res, bodyObj);
@@ -550,14 +550,40 @@ function formatBytes(bytes) {
 
 async function handleThumbnailGeneration(bodyBuffer, res, bodyObj) {
   try {
-    const { fileBuffer, url, count, mode, customTimestamps } = bodyObj;
+    const { action, fileBuffer, url, urlA, urlB, count, mode, customTimestamps } = bodyObj;
     
+    const thumbCount = clampInt(parseInt(count) || 5, 1, 8);
+    const generationMode = mode || 'random'; // 'random' or 'timeline'
+
+    if (action === 'compareThumbnails') {
+      if (!urlA || !urlB) {
+        return res.status(400).json({ error: 'Both urlA and urlB are required for comparison' });
+      }
+
+      let parsedUrlA;
+      let parsedUrlB;
+      try {
+        parsedUrlA = new URL(urlA);
+        parsedUrlB = new URL(urlB);
+      } catch {
+        return res.status(400).json({ error: 'Invalid comparison URL(s)' });
+      }
+
+      if (isPrivateUrl(parsedUrlA) || isPrivateUrl(parsedUrlB)) {
+        return res.status(400).json({ error: 'Access to private/internal URLs is forbidden' });
+      }
+
+      const pairs = await generateThumbnailPairsFromUrls(urlA, urlB, thumbCount, generationMode, customTimestamps);
+      return res.status(200).json({
+        success: true,
+        count: pairs.length,
+        pairs
+      });
+    }
+
     if (!fileBuffer && !url) {
       return res.status(400).json({ error: 'Either fileBuffer or url is required' });
     }
-
-    const thumbCount = clampInt(parseInt(count) || 5, 1, 8);
-    const generationMode = mode || 'random'; // 'random' or 'timeline'
 
     let thumbnails = [];
 
@@ -738,6 +764,52 @@ async function generateThumbnailsFromUrl(url, count, mode, customTimestamps) {
       timestampSeconds: t,
       timestamp: formatTimestamp(t),
       data
+    };
+  });
+}
+
+async function generateThumbnailPairsFromUrls(urlA, urlB, count, mode, customTimestamps) {
+  const [durationA, durationB] = await Promise.all([
+    probeDurationSecondsFromUrl(urlA),
+    probeDurationSecondsFromUrl(urlB)
+  ]);
+
+  if (!durationA || !durationB) {
+    throw new Error('Could not determine duration for one or both URLs');
+  }
+
+  const usableDuration = Math.min(durationA, durationB);
+  if (!Number.isFinite(usableDuration) || usableDuration <= 0) {
+    throw new Error('Invalid usable duration for comparison');
+  }
+
+  let timestamps = [];
+  if (mode === 'timeline') {
+    for (let i = 0; i < count; i++) {
+      const t = ((i + 1) / (count + 1)) * usableDuration;
+      timestamps.push(Math.round(t * 100) / 100);
+    }
+  } else if (customTimestamps && Array.isArray(customTimestamps) && customTimestamps.length) {
+    timestamps = customTimestamps
+      .map((t) => Number(t))
+      .filter((t) => Number.isFinite(t) && t >= 0 && t <= usableDuration)
+      .slice(0, count);
+  } else {
+    timestamps = pickRandomTimestamps(usableDuration, count);
+  }
+
+  return await mapWithConcurrency(timestamps, 2, async (t, i) => {
+    const [dataA, dataB] = await Promise.all([
+      extractThumbnailFromUrl(urlA, t),
+      extractThumbnailFromUrl(urlB, t)
+    ]);
+
+    return {
+      index: i + 1,
+      timestampSeconds: t,
+      timestamp: formatTimestamp(t),
+      imageA: dataA,
+      imageB: dataB
     };
   });
 }
