@@ -64,6 +64,42 @@
       }
     }
 
+    async generateThumbnailsFromUrl(url, count = 5) {
+      if (!this.isValidUrl(url)) {
+        throw new Error('Please enter a valid URL.');
+      }
+
+      this.showProgress(true, 'Generating thumbnails...');
+      this.hideError();
+      this.updateStatus('Generating thumbnails...', 'info');
+
+      try {
+        const response = await fetch(this.apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generateThumbnails',
+            url,
+            count,
+            mode: 'random'
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || result.message || `HTTP ${response.status}`);
+        }
+
+        return result.thumbnails || [];
+      } catch (error) {
+        this.showError(`Thumbnail generation failed: ${error.message}`);
+        this.updateStatus('Failed', 'error');
+        throw error;
+      } finally {
+        this.showProgress(false);
+      }
+    }
+
     async analyzeFromFile(file) {
       if (!file) {
         throw new Error('Please select a file.');
@@ -426,11 +462,61 @@
     });
   }
 
+  function renderThumbnails(thumbnails) {
+    const grid = document.getElementById('thumbnailsGrid');
+    if (!grid) return;
+
+    if (!thumbnails || !thumbnails.length) {
+      grid.style.display = 'none';
+      grid.innerHTML = '';
+      return;
+    }
+
+    grid.innerHTML = '';
+    thumbnails.forEach((t) => {
+      const item = document.createElement('div');
+      item.className = 'thumbnail-item';
+
+      const img = document.createElement('img');
+      img.className = 'thumbnail-img';
+      img.alt = `Thumbnail at ${t.timestamp || ''}`;
+      img.src = t.data;
+
+      const info = document.createElement('div');
+      info.className = 'thumbnail-info';
+      const label = document.createElement('div');
+      label.className = 'thumbnail-timestamp';
+      label.textContent = t.timestamp || '';
+      info.appendChild(label);
+
+      const download = document.createElement('button');
+      download.className = 'thumbnail-download';
+      download.type = 'button';
+      download.textContent = 'Download';
+      download.addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.href = t.data;
+        a.download = `thumbnail-${t.index || 0}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      });
+
+      item.appendChild(img);
+      item.appendChild(download);
+      item.appendChild(info);
+      grid.appendChild(item);
+    });
+
+    grid.style.display = 'grid';
+  }
+
   function init() {
     const client = new MediaInfoAPIClient();
 
     const urlInput = document.getElementById('urlInput');
     const analyzeUrlBtn = document.getElementById('analyzeUrlBtn');
+    const thumbUrlBtn = document.getElementById('thumbUrlBtn');
     const fileInput = document.getElementById('fileInput');
     const analyzeFileBtn = document.getElementById('analyzeFileBtn');
 
@@ -442,6 +528,7 @@
     if (analyzeUrlBtn && urlInput) {
       analyzeUrlBtn.addEventListener('click', async () => {
         const url = urlInput.value.trim();
+        renderThumbnails([]);
         setButtonLoading(analyzeUrlBtn, true, 'Analyze URL');
         try {
           await client.analyzeFromUrl(url);
@@ -456,6 +543,22 @@
         if (event.key !== 'Enter') return;
         event.preventDefault();
         analyzeUrlBtn.click();
+      });
+    }
+
+    if (thumbUrlBtn && urlInput) {
+      thumbUrlBtn.addEventListener('click', async () => {
+        const url = urlInput.value.trim();
+        setButtonLoading(thumbUrlBtn, true, 'Thumbnails');
+        try {
+          const thumbnails = await client.generateThumbnailsFromUrl(url, 5);
+          renderThumbnails(thumbnails);
+          client.updateStatus('Thumbnails generated!', 'success');
+        } catch (_error) {
+          renderThumbnails([]);
+        } finally {
+          setButtonLoading(thumbUrlBtn, false, 'Thumbnails');
+        }
       });
     }
 
