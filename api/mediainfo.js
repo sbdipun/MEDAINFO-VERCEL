@@ -677,7 +677,6 @@ async function extractThumbnailFromUrl(url, seconds) {
       '-an',
       '-sn',
       '-dn',
-      '-vf', 'scale=min(1024\\,iw):-1:flags=lanczos',
       '-compression_level', '3',
       '-y',
       outPath
