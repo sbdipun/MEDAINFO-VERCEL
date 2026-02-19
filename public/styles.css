@@ -998,27 +998,14 @@ body.dark .progress-bar {
     flex: 1;
     overflow: auto;
     background: #020617;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    display: block;
     padding: 12px;
 }
 
-.preview-slot {
-    min-width: 0;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 10px;
-    overflow: auto;
-}
-
-.preview-slot-title {
-    font-size: 12px;
-    font-weight: 700;
-    color: #cbd5e1;
-    border-bottom: 1px solid #334155;
-    padding: 8px 10px;
-    background: #111827;
+.preview-single,
+.preview-compare {
+    width: max-content;
+    max-width: none;
 }
 
 .preview-image {
@@ -1026,6 +1013,20 @@ body.dark .progress-bar {
     image-rendering: auto;
     display: block;
     max-width: none;
+}
+
+.preview-compare-slider {
+    display: block;
+    width: max-content;
+    max-width: none;
+    transform-origin: top left;
+}
+
+.preview-compare-slider img {
+    display: block;
+    max-width: none;
+    width: auto;
+    height: auto;
 }
 
 /* Dark mode for thumbnails */
@@ -1214,6 +1215,6 @@ body.dark .compare-title {
     }
 
     .preview-canvas {
-        grid-template-columns: 1fr;
+        padding: 8px;
     }
 

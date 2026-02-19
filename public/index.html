@@ -157,6 +157,7 @@
     </div>
 
     <script src="formatter.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/img-comparison-slider@8/dist/index.js"></script>
     <div class="preview-modal" id="previewModal" style="display: none;">
         <div class="preview-backdrop" id="previewBackdrop"></div>
         <div class="preview-panel">
@@ -170,13 +171,14 @@
                 </div>
             </div>
             <div class="preview-canvas" id="previewCanvas">
-                <div class="preview-slot">
-                    <div class="preview-slot-title" id="previewLabelA">Image</div>
-                    <img id="previewImageA" class="preview-image" alt="Preview A">
+                <div class="preview-single" id="previewSingleContainer">
+                    <img id="previewSingleImage" class="preview-image" alt="Preview">
                 </div>
-                <div class="preview-slot" id="previewSlotB">
-                    <div class="preview-slot-title" id="previewLabelB">Image</div>
-                    <img id="previewImageB" class="preview-image" alt="Preview B">
+                <div class="preview-compare" id="previewCompareContainer" style="display: none;">
+                    <img-comparison-slider class="preview-compare-slider" id="previewCompareSlider">
+                        <img slot="first" id="previewCompareImageA" alt="Compare A">
+                        <img slot="second" id="previewCompareImageB" alt="Compare B">
+                    </img-comparison-slider>
                 </div>
             </div>
         </div>

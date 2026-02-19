@@ -641,51 +641,59 @@
     const zoomInBtn = document.getElementById('previewZoomIn');
     const zoomOutBtn = document.getElementById('previewZoomOut');
     const zoomResetBtn = document.getElementById('previewZoomReset');
-    const previewImageA = document.getElementById('previewImageA');
-    const previewImageB = document.getElementById('previewImageB');
-    const previewSlotB = document.getElementById('previewSlotB');
-    const previewLabelA = document.getElementById('previewLabelA');
-    const previewLabelB = document.getElementById('previewLabelB');
+    const previewSingleContainer = document.getElementById('previewSingleContainer');
+    const previewSingleImage = document.getElementById('previewSingleImage');
+    const previewCompareContainer = document.getElementById('previewCompareContainer');
+    const previewCompareSlider = document.getElementById('previewCompareSlider');
+    const previewCompareImageA = document.getElementById('previewCompareImageA');
+    const previewCompareImageB = document.getElementById('previewCompareImageB');
     const previewTitle = document.getElementById('previewTitle');
 
-    if (!modal || !backdrop || !closeBtn || !zoomInBtn || !zoomOutBtn || !zoomResetBtn || !previewImageA || !previewImageB || !previewSlotB || !previewLabelA || !previewLabelB || !previewTitle) {
+    if (!modal || !backdrop || !closeBtn || !zoomInBtn || !zoomOutBtn || !zoomResetBtn ||
+      !previewSingleContainer || !previewSingleImage ||
+      !previewCompareContainer || !previewCompareSlider || !previewCompareImageA || !previewCompareImageB ||
+      !previewTitle) {
       return;
     }
 
     let zoom = 1;
+    let activeTarget = null;
     const ZOOM_MIN = 0.1;
     const ZOOM_MAX = 8;
     const ZOOM_STEP = 0.2;
 
     function applyZoom() {
-      previewImageA.style.transform = `scale(${zoom})`;
-      previewImageB.style.transform = `scale(${zoom})`;
+      if (activeTarget) {
+        activeTarget.style.transform = `scale(${zoom})`;
+      }
       zoomResetBtn.textContent = `${Math.round(zoom * 100)}%`;
     }
 
     function closeModal() {
       modal.style.display = 'none';
-      previewImageA.src = '';
-      previewImageB.src = '';
+      previewSingleImage.src = '';
+      previewCompareImageA.src = '';
+      previewCompareImageB.src = '';
+      activeTarget = null;
     }
 
     function openSingleModal(src, title) {
-      previewImageA.src = src;
-      previewLabelA.textContent = 'Image';
-      previewSlotB.style.display = 'none';
-      previewImageB.src = '';
+      previewSingleContainer.style.display = 'block';
+      previewCompareContainer.style.display = 'none';
+      previewSingleImage.src = src;
+      activeTarget = previewSingleImage;
       previewTitle.textContent = title || 'Image Preview';
       zoom = 1;
       applyZoom();
       modal.style.display = 'block';
     }
 
-    function openCompareModal(srcA, srcB, title, labelA = 'Image A', labelB = 'Image B') {
-      previewImageA.src = srcA;
-      previewImageB.src = srcB;
-      previewLabelA.textContent = labelA;
-      previewLabelB.textContent = labelB;
-      previewSlotB.style.display = 'block';
+    function openCompareModal(srcA, srcB, title) {
+      previewSingleContainer.style.display = 'none';
+      previewCompareContainer.style.display = 'block';
+      previewCompareImageA.src = srcA;
+      previewCompareImageB.src = srcB;
+      activeTarget = previewCompareSlider;
       previewTitle.textContent = title || 'Image Compare Preview';
       zoom = 1;
       applyZoom();
