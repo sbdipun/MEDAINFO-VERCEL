@@ -157,6 +157,23 @@
     </div>
 
     <script src="formatter.js"></script>
+    <div class="preview-modal" id="previewModal" style="display: none;">
+        <div class="preview-backdrop" id="previewBackdrop"></div>
+        <div class="preview-panel">
+            <div class="preview-toolbar">
+                <span class="preview-title" id="previewTitle">Image Preview</span>
+                <div class="preview-actions">
+                    <button class="preview-btn" id="previewZoomOut" type="button">-</button>
+                    <button class="preview-btn" id="previewZoomReset" type="button">100%</button>
+                    <button class="preview-btn" id="previewZoomIn" type="button">+</button>
+                    <button class="preview-btn preview-close" id="previewClose" type="button">Close</button>
+                </div>
+            </div>
+            <div class="preview-canvas" id="previewCanvas">
+                <img id="previewImage" class="preview-image" alt="Preview">
+            </div>
+        </div>
+    </div>
     <script src="app.js"></script>
 </body>
 

@@ -542,7 +542,16 @@
         a.remove();
       });
 
+      const preview = document.createElement('button');
+      preview.className = 'thumbnail-preview';
+      preview.type = 'button';
+      preview.textContent = 'Preview';
+      preview.addEventListener('click', () => {
+        window.openPreviewModal(t.data, `Thumbnail ${t.index || ''} • ${t.timestamp || ''}`);
+      });
+
       item.appendChild(img);
+      item.appendChild(preview);
       item.appendChild(download);
       item.appendChild(info);
       grid.appendChild(item);
@@ -582,6 +591,9 @@
       imgA.className = 'compare-img';
       imgA.src = pair.imageA;
       imgA.alt = `URL A at ${pair.timestamp || ''}`;
+      imgA.addEventListener('click', () => {
+        window.openPreviewModal(pair.imageA, `URL A • ${pair.timestamp || ''}`);
+      });
       colA.appendChild(titleA);
       colA.appendChild(imgA);
 
@@ -594,6 +606,9 @@
       imgB.className = 'compare-img';
       imgB.src = pair.imageB;
       imgB.alt = `URL B at ${pair.timestamp || ''}`;
+      imgB.addEventListener('click', () => {
+        window.openPreviewModal(pair.imageB, `URL B • ${pair.timestamp || ''}`);
+      });
       colB.appendChild(titleB);
       colB.appendChild(imgB);
 
@@ -605,6 +620,69 @@
     });
 
     grid.style.display = 'grid';
+  }
+
+  function setupPreviewModal() {
+    const modal = document.getElementById('previewModal');
+    const backdrop = document.getElementById('previewBackdrop');
+    const closeBtn = document.getElementById('previewClose');
+    const zoomInBtn = document.getElementById('previewZoomIn');
+    const zoomOutBtn = document.getElementById('previewZoomOut');
+    const zoomResetBtn = document.getElementById('previewZoomReset');
+    const previewImage = document.getElementById('previewImage');
+    const previewTitle = document.getElementById('previewTitle');
+
+    if (!modal || !backdrop || !closeBtn || !zoomInBtn || !zoomOutBtn || !zoomResetBtn || !previewImage || !previewTitle) {
+      return;
+    }
+
+    let zoom = 1;
+    const ZOOM_MIN = 0.1;
+    const ZOOM_MAX = 8;
+    const ZOOM_STEP = 0.2;
+
+    function applyZoom() {
+      previewImage.style.transform = `scale(${zoom})`;
+      zoomResetBtn.textContent = `${Math.round(zoom * 100)}%`;
+    }
+
+    function closeModal() {
+      modal.style.display = 'none';
+      previewImage.src = '';
+    }
+
+    function openModal(src, title) {
+      previewImage.src = src;
+      previewTitle.textContent = title || 'Image Preview';
+      zoom = 1;
+      applyZoom();
+      modal.style.display = 'block';
+    }
+
+    zoomInBtn.addEventListener('click', () => {
+      zoom = Math.min(ZOOM_MAX, zoom + ZOOM_STEP);
+      applyZoom();
+    });
+
+    zoomOutBtn.addEventListener('click', () => {
+      zoom = Math.max(ZOOM_MIN, zoom - ZOOM_STEP);
+      applyZoom();
+    });
+
+    zoomResetBtn.addEventListener('click', () => {
+      zoom = 1;
+      applyZoom();
+    });
+
+    backdrop.addEventListener('click', closeModal);
+    closeBtn.addEventListener('click', closeModal);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && modal.style.display === 'block') {
+        closeModal();
+      }
+    });
+
+    window.openPreviewModal = openModal;
   }
 
   function init() {
@@ -625,6 +703,7 @@
     setupThemeToggle();
     setupCopyButton();
     setupFormatButtons(client);
+    setupPreviewModal();
 
     if (analyzeUrlBtn && urlInput) {
       analyzeUrlBtn.addEventListener('click', async () => {

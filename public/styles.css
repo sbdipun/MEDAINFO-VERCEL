@@ -908,6 +908,107 @@ body.dark .progress-bar {
     background: rgba(99, 102, 241, 1);
 }
 
+.thumbnail-preview {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(17, 24, 39, 0.85);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.thumbnail-item:hover .thumbnail-preview {
+    opacity: 1;
+}
+
+.preview-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+}
+
+.preview-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(3, 7, 18, 0.8);
+}
+
+.preview-panel {
+    position: relative;
+    width: min(96vw, 1400px);
+    height: min(92vh, 980px);
+    margin: 3vh auto;
+    background: #0b1220;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.preview-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid #334155;
+    color: #e5e7eb;
+}
+
+.preview-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.preview-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.preview-btn {
+    background: #1f2937;
+    color: #f9fafb;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.preview-btn:hover {
+    background: #111827;
+}
+
+.preview-close {
+    background: #7f1d1d;
+    border-color: #b91c1c;
+}
+
+.preview-close:hover {
+    background: #991b1b;
+}
+
+.preview-canvas {
+    flex: 1;
+    overflow: auto;
+    background: #020617;
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+
+.preview-image {
+    transform-origin: top left;
+    image-rendering: auto;
+    display: block;
+}
+
 /* Dark mode for thumbnails */
 body.dark .control-label {
     color: #e0e7ff;
@@ -944,6 +1045,10 @@ body.dark .thumbnail-info {
 
 body.dark .thumbnail-timestamp {
     color: #e0e7ff;
+}
+
+body.dark .thumbnail-preview {
+    background: rgba(30, 41, 59, 0.9);
 }
 
 body.dark .compare-section {
@@ -1081,5 +1186,11 @@ body.dark .compare-title {
 
     .compare-row {
         grid-template-columns: 1fr;
+    }
+
+    .preview-panel {
+        width: 98vw;
+        height: 94vh;
+        margin: 2vh auto;
     }
 
