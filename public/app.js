@@ -592,7 +592,13 @@
       imgA.src = pair.imageA;
       imgA.alt = `URL A at ${pair.timestamp || ''}`;
       imgA.addEventListener('click', () => {
-        window.openPreviewModal(pair.imageA, `URL A • ${pair.timestamp || ''}`);
+        window.openComparePreviewModal(
+          pair.imageA,
+          pair.imageB,
+          `Compare • ${pair.timestamp || ''}`,
+          'URL A',
+          'URL B'
+        );
       });
       colA.appendChild(titleA);
       colA.appendChild(imgA);
@@ -607,7 +613,13 @@
       imgB.src = pair.imageB;
       imgB.alt = `URL B at ${pair.timestamp || ''}`;
       imgB.addEventListener('click', () => {
-        window.openPreviewModal(pair.imageB, `URL B • ${pair.timestamp || ''}`);
+        window.openComparePreviewModal(
+          pair.imageA,
+          pair.imageB,
+          `Compare • ${pair.timestamp || ''}`,
+          'URL A',
+          'URL B'
+        );
       });
       colB.appendChild(titleB);
       colB.appendChild(imgB);
@@ -629,10 +641,14 @@
     const zoomInBtn = document.getElementById('previewZoomIn');
     const zoomOutBtn = document.getElementById('previewZoomOut');
     const zoomResetBtn = document.getElementById('previewZoomReset');
-    const previewImage = document.getElementById('previewImage');
+    const previewImageA = document.getElementById('previewImageA');
+    const previewImageB = document.getElementById('previewImageB');
+    const previewSlotB = document.getElementById('previewSlotB');
+    const previewLabelA = document.getElementById('previewLabelA');
+    const previewLabelB = document.getElementById('previewLabelB');
     const previewTitle = document.getElementById('previewTitle');
 
-    if (!modal || !backdrop || !closeBtn || !zoomInBtn || !zoomOutBtn || !zoomResetBtn || !previewImage || !previewTitle) {
+    if (!modal || !backdrop || !closeBtn || !zoomInBtn || !zoomOutBtn || !zoomResetBtn || !previewImageA || !previewImageB || !previewSlotB || !previewLabelA || !previewLabelB || !previewTitle) {
       return;
     }
 
@@ -642,18 +658,35 @@
     const ZOOM_STEP = 0.2;
 
     function applyZoom() {
-      previewImage.style.transform = `scale(${zoom})`;
+      previewImageA.style.transform = `scale(${zoom})`;
+      previewImageB.style.transform = `scale(${zoom})`;
       zoomResetBtn.textContent = `${Math.round(zoom * 100)}%`;
     }
 
     function closeModal() {
       modal.style.display = 'none';
-      previewImage.src = '';
+      previewImageA.src = '';
+      previewImageB.src = '';
     }
 
-    function openModal(src, title) {
-      previewImage.src = src;
+    function openSingleModal(src, title) {
+      previewImageA.src = src;
+      previewLabelA.textContent = 'Image';
+      previewSlotB.style.display = 'none';
+      previewImageB.src = '';
       previewTitle.textContent = title || 'Image Preview';
+      zoom = 1;
+      applyZoom();
+      modal.style.display = 'block';
+    }
+
+    function openCompareModal(srcA, srcB, title, labelA = 'Image A', labelB = 'Image B') {
+      previewImageA.src = srcA;
+      previewImageB.src = srcB;
+      previewLabelA.textContent = labelA;
+      previewLabelB.textContent = labelB;
+      previewSlotB.style.display = 'block';
+      previewTitle.textContent = title || 'Image Compare Preview';
       zoom = 1;
       applyZoom();
       modal.style.display = 'block';
@@ -682,7 +715,8 @@
       }
     });
 
-    window.openPreviewModal = openModal;
+    window.openPreviewModal = openSingleModal;
+    window.openComparePreviewModal = openCompareModal;
   }
 
   function init() {
