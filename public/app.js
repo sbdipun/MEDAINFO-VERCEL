@@ -43,11 +43,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
         });
-
-        const result = await response.json();
-        if (!response.ok) {
-          throw new Error(result.error || `HTTP ${response.status}`);
-        }
+        const result = await this.parseResponse(response);
 
         this.currentData = result.data;
         this.fillFileInfo(result.fileInfo || {});
@@ -85,11 +81,7 @@
             mode: 'random'
           })
         });
-
-        const result = await response.json();
-        if (!response.ok) {
-          throw new Error(result.error || result.message || `HTTP ${response.status}`);
-        }
+        const result = await this.parseResponse(response);
 
         return result.thumbnails || [];
       } catch (error) {
@@ -131,11 +123,7 @@
           method: 'POST',
           body: formData
         });
-
-        const result = await response.json();
-        if (!response.ok) {
-          throw new Error(result.error || `HTTP ${response.status}`);
-        }
+        const result = await this.parseResponse(response);
 
         this.currentData = result.data;
         this.fillFileInfo(result.fileInfo || {}, file.size);
@@ -150,6 +138,24 @@
       } finally {
         this.showProgress(false);
       }
+    }
+
+    async parseResponse(response) {
+      const raw = await response.text();
+      let parsed;
+
+      try {
+        parsed = raw ? JSON.parse(raw) : {};
+      } catch (_error) {
+        const preview = (raw || '').replace(/\s+/g, ' ').slice(0, 180);
+        throw new Error(`Server returned non-JSON response (HTTP ${response.status}): ${preview || 'empty body'}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(parsed.error || parsed.message || `HTTP ${response.status}`);
+      }
+
+      return parsed;
     }
 
     fillFileInfo(fileInfo, fallbackSize = 0) {

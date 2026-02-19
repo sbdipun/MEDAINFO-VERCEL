@@ -667,15 +667,18 @@ async function extractThumbnailFromUrl(url, seconds) {
   const outPath = path.join(tmpDir, `thumb-${id}.png`);
 
   try {
-    // Keep high fidelity output: PNG frame with accurate seek and no forced downscale.
+    // Use fast keyframe seek for better latency on remote URLs.
     await runFfmpeg([
       '-hide_banner',
       '-loglevel', 'error',
-      '-i', url,
       '-ss', String(seconds),
+      '-i', url,
       '-frames:v', '1',
-      '-vf', 'scale=min(1280\\,iw):-1:flags=lanczos',
-      '-compression_level', '2',
+      '-an',
+      '-sn',
+      '-dn',
+      '-vf', 'scale=min(1024\\,iw):-1:flags=lanczos',
+      '-compression_level', '3',
       '-y',
       outPath
     ]);
@@ -689,6 +692,23 @@ async function extractThumbnailFromUrl(url, seconds) {
       // ignore
     }
   }
+}
+
+async function mapWithConcurrency(items, concurrency, mapper) {
+  const limit = Math.max(1, Math.min(concurrency, items.length));
+  const results = new Array(items.length);
+  let cursor = 0;
+
+  async function worker() {
+    while (true) {
+      const index = cursor++;
+      if (index >= items.length) return;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+
+  await Promise.all(Array.from({ length: limit }, () => worker()));
+  return results;
 }
 
 async function generateThumbnailsFromUrl(url, count, mode, customTimestamps) {
@@ -712,19 +732,15 @@ async function generateThumbnailsFromUrl(url, count, mode, customTimestamps) {
     timestamps = pickRandomTimestamps(duration, count);
   }
 
-  const thumbs = [];
-  for (let i = 0; i < timestamps.length; i++) {
-    const t = timestamps[i];
+  return await mapWithConcurrency(timestamps, 3, async (t, i) => {
     const data = await extractThumbnailFromUrl(url, t);
-    thumbs.push({
+    return {
       index: i + 1,
       timestampSeconds: t,
       timestamp: formatTimestamp(t),
       data
-    });
-  }
-
-  return thumbs;
+    };
+  });
 }
 
 async function generateThumbnailsFromBuffer(buffer, count, mode, customTimestamps) {
