@@ -539,110 +539,33 @@ async function handleThumbnailGeneration(bodyBuffer, res, bodyObj) {
 }
 
 async function generateThumbnails(buffer, count, mode, customTimestamps) {
-  return new Promise(async (resolve, reject) => {
-    // For now, return placeholder since FFmpeg might not work perfectly on Vercel
-    // In production, you'd use FFmpeg or external service
-    
-    if (!buffer || buffer.length === 0) {
-      reject(new Error('Empty buffer provided'));
-      return;
+  // Generate placeholder thumbnails (FFmpeg not available on Vercel)
+  // For production, integrate with Cloudinary or Mux API
+  
+  if (!buffer || buffer.length === 0) {
+    throw new Error('Empty buffer provided');
+  }
+
+  const thumbnails = [];
+  const timestamps = [];
+
+  if (mode === 'random') {
+    // Get random timestamps
+    for (let i = 0; i < count; i++) {
+      const randTime = Math.random();
+      timestamps.push(randTime);
     }
-
-    try {
-      // Try to use FFmpeg if available
-      const ffmpeg = require('fluent-ffmpeg');
-      const ffmpegPath = require('ffmpeg-static');
-      
-      ffmpeg.setFfmpegPath(ffmpegPath);
-
-      const tempDir = '/tmp';
-      const inputPath = `${tempDir}/input_${Date.now()}.tmp`;
-      const fs = require('fs');
-      
-      // Write buffer to temp file
-      fs.writeFileSync(inputPath, buffer);
-
-      const timestamps = [];
-      const thumbnails = [];
-
-      if (mode === 'random') {
-        // Get random timestamps
-        for (let i = 0; i < count; i++) {
-          const randTime = Math.random();
-          timestamps.push(randTime);
-        }
-      } else if (mode === 'timeline') {
-        // Evenly distribute throughout the video
-        for (let i = 0; i < count; i++) {
-          const percent = (i + 1) / (count + 1);
-          timestamps.push(percent);
-        }
-      } else if (customTimestamps && Array.isArray(customTimestamps)) {
-        timestamps.push(...customTimestamps);
-      }
-
-      let completed = 0;
-
-      const proc = ffmpeg(inputPath)
-        .on('filenames', (filenames) => {
-          console.log('Thumbnails will be saved as:', filenames);
-        })
-        .on('progress', (progress) => {
-          console.log('Screenshot progress:', progress);
-        })
-        .on('error', (err) => {
-          console.error('FFmpeg error:', err);
-          // Cleanup
-          try { fs.unlinkSync(inputPath); } catch (e) {}
-          reject(new Error(`FFmpeg error: ${err.message}`));
-        })
-        .on('end', () => {
-          console.log('Thumbnails generated successfully');
-          
-          // Read generated thumbnail files
-          try {
-            const files = fs.readdirSync(tempDir).filter(f => f.startsWith('thumbnail_') && f.endsWith('.png'));
-            
-            files.forEach(file => {
-              const filepath = `${tempDir}/${file}`;
-              const imageBuffer = fs.readFileSync(filepath);
-              const base64 = imageBuffer.toString('base64');
-              thumbnails.push({
-                index: thumbnails.length + 1,
-                data: `data:image/png;base64,${base64}`,
-                timestamp: timestamps[thumbnails.length]
-              });
-              try { fs.unlinkSync(filepath); } catch (e) {}
-            });
-            
-            // Cleanup input file
-            try { fs.unlinkSync(inputPath); } catch (e) {}
-            
-            resolve(thumbnails.length > 0 ? thumbnails : placeholderThumbnails(count));
-          } catch (err) {
-            console.error('Error reading thumbnails:', err);
-            try { fs.unlinkSync(inputPath); } catch (e) {}
-            resolve(placeholderThumbnails(count));
-          }
-        })
-        .screenshots({
-          count: count,
-          folder: tempDir,
-          filename: 'thumbnail_%i.png',
-          size: '320x180'
-        });
-
-    } catch (error) {
-      console.error('FFmpeg setup error:', error);
-      // Return placeholder if FFmpeg fails
-      resolve(placeholderThumbnails(count));
+  } else if (mode === 'timeline') {
+    // Evenly distribute throughout the video
+    for (let i = 0; i < count; i++) {
+      const percent = (i + 1) / (count + 1);
+      timestamps.push(percent);
     }
-  });
-}
+  } else if (customTimestamps && Array.isArray(customTimestamps)) {
+    timestamps.push(...customTimestamps);
+  }
 
-function placeholderThumbnails(count) {
-  // Return placeholder PNG images when FFmpeg isn't available
-  const placeholders = [];
+  // Return placeholder PNG images
   for (let i = 0; i < count; i++) {
     // 1x1 transparent PNG
     const pngData = Buffer.from([
@@ -657,12 +580,18 @@ function placeholderThumbnails(count) {
       0x42, 0x60, 0x82
     ]);
     
-    placeholders.push({
+    thumbnails.push({
       index: i + 1,
       data: `data:image/png;base64,${pngData.toString('base64')}`,
-      timestamp: (i + 1) / (count + 1),
-      isPlaceholder: true
+      timestamp: timestamps[i],
+      note: 'Placeholder - Use Cloudinary or Mux for actual video thumbnails'
     });
   }
-  return placeholders;
+  
+  return thumbnails;
+}
+
+function placeholderThumbnails(count) {
+  // Deprecated - use generateThumbnails instead
+  return [];
 }
