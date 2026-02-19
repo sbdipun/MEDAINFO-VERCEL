@@ -3,7 +3,7 @@
   "functions": {
     "api/mediainfo.js": {
       "maxDuration": 300,
-      "memory": 3008,
+      "memory": 2048,
       "includeFiles": "node_modules/mediainfo.js/dist/**"
     }
   },
