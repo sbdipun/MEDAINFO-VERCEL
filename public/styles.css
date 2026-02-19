@@ -785,6 +785,71 @@ body.dark .progress-bar {
     margin-top: 20px;
 }
 
+.compare-section {
+    margin-top: 18px;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 14px;
+}
+
+.compare-inputs {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.compare-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.compare-item {
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #f9fafb;
+}
+
+.compare-label {
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+    background: #ffffff;
+}
+
+.compare-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 8px;
+}
+
+.compare-col {
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+}
+
+.compare-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #6b7280;
+    padding: 6px 8px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.compare-img {
+    width: 100%;
+    display: block;
+    height: auto;
+    background: #111827;
+}
+
 .thumbnail-item {
     border-radius: 8px;
     overflow: hidden;
@@ -881,6 +946,31 @@ body.dark .thumbnail-timestamp {
     color: #e0e7ff;
 }
 
+body.dark .compare-section {
+    border-top-color: #2d2b5e;
+}
+
+body.dark .compare-item {
+    border-color: #2d2b5e;
+    background: #1a1840;
+}
+
+body.dark .compare-label {
+    color: #e0e7ff;
+    border-bottom-color: #2d2b5e;
+    background: #13112b;
+}
+
+body.dark .compare-col {
+    border-color: #2d2b5e;
+    background: #13112b;
+}
+
+body.dark .compare-title {
+    color: #a5b4fc;
+    border-bottom-color: #2d2b5e;
+}
+
 /* ===== Tablet (max-width: 768px) ===== */
 @media (max-width: 768px) {
     body {
@@ -920,6 +1010,10 @@ body.dark .thumbnail-timestamp {
     .file-input {
         font-size: 13px;
         padding: 10px 12px;
+    }
+
+    .thumb-count-input {
+        width: 100%;
     }
 
     .analyze-btn {
@@ -983,5 +1077,9 @@ body.dark .thumbnail-timestamp {
 
     .info-value {
         font-size: 12px;
+    }
+
+    .compare-row {
+        grid-template-columns: 1fr;
     }
 

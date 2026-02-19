@@ -43,6 +43,19 @@
                     </button>
                 </div>
                 <div id="thumbnailsGrid" class="thumbnails-grid" style="display: none;"></div>
+
+                <div class="compare-section">
+                    <div class="compare-inputs">
+                        <input type="url" class="url-input" id="compareUrlA" placeholder="Compare URL A">
+                        <input type="url" class="url-input" id="compareUrlB" placeholder="Compare URL B">
+                        <input type="number" class="thumb-count-input" id="compareCountInput" min="1" max="8" value="4"
+                            title="Number of thumbnail pairs">
+                        <button class="analyze-btn" id="compareBtn" title="Compare two URLs on same timestamps">
+                            <span class="btn-text">Compare SS</span>
+                        </button>
+                    </div>
+                    <div id="compareGrid" class="compare-grid" style="display: none;"></div>
+                </div>
             </div>
 
             <div class="input-section" id="uploadTab" style="display: none;">

@@ -140,6 +140,39 @@
       }
     }
 
+    async compareThumbnailPairs(urlA, urlB, count = 4) {
+      if (!this.isValidUrl(urlA) || !this.isValidUrl(urlB)) {
+        throw new Error('Please enter two valid URLs.');
+      }
+      const safeCount = Math.max(1, Math.min(8, parseInt(count, 10) || 4));
+
+      this.showProgress(true, 'Comparing thumbnails...');
+      this.hideError();
+      this.updateStatus('Generating comparison pairs...', 'info');
+
+      try {
+        const response = await fetch(this.apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'compareThumbnails',
+            urlA,
+            urlB,
+            count: safeCount,
+            mode: 'random'
+          })
+        });
+        const result = await this.parseResponse(response);
+        return result.pairs || [];
+      } catch (error) {
+        this.showError(`Comparison failed: ${error.message}`);
+        this.updateStatus('Failed', 'error');
+        throw error;
+      } finally {
+        this.showProgress(false);
+      }
+    }
+
     async parseResponse(response) {
       const raw = await response.text();
       let parsed;
@@ -518,13 +551,73 @@
     grid.style.display = 'grid';
   }
 
+  function renderComparePairs(pairs) {
+    const grid = document.getElementById('compareGrid');
+    if (!grid) return;
+
+    if (!pairs || !pairs.length) {
+      grid.style.display = 'none';
+      grid.innerHTML = '';
+      return;
+    }
+
+    grid.innerHTML = '';
+    pairs.forEach((pair) => {
+      const card = document.createElement('div');
+      card.className = 'compare-item';
+
+      const label = document.createElement('div');
+      label.className = 'compare-label';
+      label.textContent = pair.timestamp || '';
+
+      const row = document.createElement('div');
+      row.className = 'compare-row';
+
+      const colA = document.createElement('div');
+      colA.className = 'compare-col';
+      const titleA = document.createElement('div');
+      titleA.className = 'compare-title';
+      titleA.textContent = 'URL A';
+      const imgA = document.createElement('img');
+      imgA.className = 'compare-img';
+      imgA.src = pair.imageA;
+      imgA.alt = `URL A at ${pair.timestamp || ''}`;
+      colA.appendChild(titleA);
+      colA.appendChild(imgA);
+
+      const colB = document.createElement('div');
+      colB.className = 'compare-col';
+      const titleB = document.createElement('div');
+      titleB.className = 'compare-title';
+      titleB.textContent = 'URL B';
+      const imgB = document.createElement('img');
+      imgB.className = 'compare-img';
+      imgB.src = pair.imageB;
+      imgB.alt = `URL B at ${pair.timestamp || ''}`;
+      colB.appendChild(titleB);
+      colB.appendChild(imgB);
+
+      row.appendChild(colA);
+      row.appendChild(colB);
+      card.appendChild(label);
+      card.appendChild(row);
+      grid.appendChild(card);
+    });
+
+    grid.style.display = 'grid';
+  }
+
   function init() {
     const client = new MediaInfoAPIClient();
 
     const urlInput = document.getElementById('urlInput');
     const thumbCountInput = document.getElementById('thumbCountInput');
+    const compareUrlA = document.getElementById('compareUrlA');
+    const compareUrlB = document.getElementById('compareUrlB');
+    const compareCountInput = document.getElementById('compareCountInput');
     const analyzeUrlBtn = document.getElementById('analyzeUrlBtn');
     const thumbUrlBtn = document.getElementById('thumbUrlBtn');
+    const compareBtn = document.getElementById('compareBtn');
     const fileInput = document.getElementById('fileInput');
     const analyzeFileBtn = document.getElementById('analyzeFileBtn');
 
@@ -558,6 +651,7 @@
       thumbUrlBtn.addEventListener('click', async () => {
         const url = urlInput.value.trim();
         const thumbCount = thumbCountInput ? thumbCountInput.value : 5;
+        renderComparePairs([]);
         setButtonLoading(thumbUrlBtn, true, 'Thumbnails');
         try {
           const thumbnails = await client.generateThumbnailsFromUrl(url, thumbCount);
@@ -567,6 +661,25 @@
           renderThumbnails([]);
         } finally {
           setButtonLoading(thumbUrlBtn, false, 'Thumbnails');
+        }
+      });
+    }
+
+    if (compareBtn && compareUrlA && compareUrlB) {
+      compareBtn.addEventListener('click', async () => {
+        const urlA = compareUrlA.value.trim();
+        const urlB = compareUrlB.value.trim();
+        const pairCount = compareCountInput ? compareCountInput.value : 4;
+        renderThumbnails([]);
+        setButtonLoading(compareBtn, true, 'Compare SS');
+        try {
+          const pairs = await client.compareThumbnailPairs(urlA, urlB, pairCount);
+          renderComparePairs(pairs);
+          client.updateStatus('Comparison generated!', 'success');
+        } catch (_error) {
+          renderComparePairs([]);
+        } finally {
+          setButtonLoading(compareBtn, false, 'Compare SS');
         }
       });
     }
