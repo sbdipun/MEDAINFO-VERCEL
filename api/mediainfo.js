@@ -156,85 +156,128 @@ async function handleFileUpload(req, res) {
   });
 }
 
-async function handleUrlAnalysis(bodyBuffer, res) {
-  return new Promise(async (resolve) => {
-    try {
-      const bodyString = bodyBuffer.toString();
-      if (!bodyString) {
-        return resolve(res.status(400).json({ error: 'Empty request body' }));
-      }
-
-      let body;
-      try {
-        body = JSON.parse(bodyString);
-      } catch (parseError) {
-        return resolve(res.status(400).json({
-          error: 'Invalid JSON in request body',
-          details: parseError.message
-        }));
-      }
-
-      const { url } = body;
-
-      if (!url) {
-        return resolve(res.status(400).json({ error: 'URL is required' }));
-      }
-
-      // Validate URL
-      try {
-        new URL(url);
-      } catch {
-        return resolve(res.status(400).json({ error: 'Invalid URL' }));
-      }
-      // Convert Google Drive links to direct download
-      let downloadUrl = url;
-      if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
-        const patterns = [
-          /\/file\/d\/([a-zA-Z0-9-_]+)/,
-          /id=([a-zA-Z0-9-_]+)/,
-          /\/open\?id=([a-zA-Z0-9-_]+)/
-        ];
-        let fileId = null;
-        for (const pattern of patterns) {
-          const match = url.match(pattern);
-          if (match) {
-            fileId = match[1];
-            break;
-          }
-        }
-        if (fileId) {
-          downloadUrl = `https://gdl.anshumanpm.eu.org/direct.aspx?id=${fileId}`;
-        }
-      }
-
-      // Download first 10MB
-      const { buffer, filename, fileSize } = await downloadFirst10MB(downloadUrl);
-
-      // Analyze with MediaInfo
-      const mediaInfo = await analyzeWithMediaInfo(buffer);
-
-      // Get file info
-      const fileInfo = {
-        url: url,
-        filename: filename,
-        size: fileSize,
-        sizeFormatted: formatBytes(fileSize),
-        type: 'url',
-        isPartial: buffer.length < fileSize
-      };
-
-      return resolve(res.status(200).json({
-        success: true,
-        fileInfo: fileInfo,
-        data: mediaInfo
-      }));
-
-    } catch (error) {
-      return resolve(res.status(500).json({ error: error.message }));
+async function handleUrlAnalysis(req, res) {
+  try {
+    // Read body
+    const chunks = [];
+    for await (const chunk of req) {
+      chunks.push(chunk);
     }
-  });
+
+    const bodyString = Buffer.concat(chunks).toString();
+    if (!bodyString) {
+      return res.status(400).json({ error: 'Empty request body' });
+    }
+
+    let body;
+    try {
+      body = JSON.parse(bodyString);
+    } catch (parseError) {
+      return res.status(400).json({
+        error: 'Invalid JSON in request body',
+        details: parseError.message
+      });
+    }
+
+    const { url } = body;
+
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    // Validate URL and check for SSRF
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return res.status(400).json({ error: 'Invalid URL' });
+    }
+
+    if (isPrivateUrl(parsedUrl)) {
+      return res.status(400).json({ error: 'Access to private/internal URLs is forbidden' });
+    }
+
+    // Convert Google Drive links to direct download
+    let downloadUrl = url;
+    if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+      // NOTE: Removed hardcoded proxy for stability. 
+      // Users should provide direct links or use a reputable generator.
+      // Keeping original URL but logged logic for reference.
+      const patterns = [
+        /\/file\/d\/([a-zA-Z0-9-_]+)/,
+        /id=([a-zA-Z0-9-_]+)/,
+        /\/open\?id=([a-zA-Z0-9-_]+)/
+      ];
+      let fileId = null;
+      for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) {
+          fileId = match[1];
+          break;
+        }
+      }
+      if (fileId) {
+         // Optionally confirm with user if they want to use a specific proxy
+         // downloadUrl = `https://drive.usercontent.google.com/download?id=${fileId}&export=download`;
+         // For now, treat as normal URL to avoid breaking if proxy is down
+      }
+    }
+
+    // Download first 10MB
+    const { buffer, filename, fileSize } = await downloadFirst10MB(downloadUrl);
+
+    // Analyze with MediaInfo
+    const mediaInfo = await analyzeWithMediaInfo(buffer);
+
+    // Get file info
+    const fileInfo = {
+      url: url,
+      filename: filename,
+      size: fileSize,
+      sizeFormatted: formatBytes(fileSize),
+      type: 'url',
+      isPartial: buffer.length < fileSize
+    };
+
+    return res.status(200).json({
+      success: true,
+      fileInfo: fileInfo,
+      data: mediaInfo
+    });
+
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
 }
 
+function isPrivateUrl(parsedUrl) {
+  const hostname = parsedUrl.hostname;
+  
+  // Localhost
+  if (hostname === 'localhost' || hostname.endsWith('.localhost')) return true;
+
+  // IPv4 Private Ranges
+  // 127.0.0.0/8
+  if (hostname.startsWith('127.')) return true;
+  // 10.0.0.0/8
+  if (hostname.startsWith('10.')) return true;
+  // 172.16.0.0/12 (172.16.x.x - 172.31.x.x)
+  if (hostname.startsWith('172.')) {
+    const secondOctet = parseInt(hostname.split('.')[1]);
+    if (secondOctet >= 16 && secondOctet <= 31) return true;
+  }
+  // 192.168.0.0/16
+  if (hostname.startsWith('192.168.')) return true;
+  // 0.0.0.0/8
+  if (hostname.startsWith('0.')) return true;
+  // 169.254.0.0/16 (Link-local)
+  if (hostname.startsWith('169.254.')) return true;
+
+  // IPv6 checks (simple)
+  if (hostname === '[::1]' || hostname === '::1') return true;
+  
+  return false;
+}
 async function downloadFirst10MB(url) {
   const maxSize = 5 * 1024 * 1024; // 5MB for faster processing
 
