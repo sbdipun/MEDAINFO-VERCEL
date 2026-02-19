@@ -1,4 +1,26 @@
-﻿<!DOCTYPE html>
+$ErrorActionPreference = "Stop"
+
+try {
+    Write-Host "Starting Refactor..."
+
+    # 1. Extract files
+    $lines = Get-Content "public/index.html"
+    
+    # CSS: Lines 12-976 (Index 11..975)
+    $lines[11..975] | Set-Content "public/styles.css" -Encoding UTF8
+    
+    # JS: Lines 1108-1575 (Index 1107..1574)
+    $lines[1107..1574] | Set-Content "public/app.js" -Encoding UTF8
+
+    # Remove indentation
+    (Get-Content "public/styles.css") -replace '^ {8}', '' | Set-Content "public/styles.css" -Encoding UTF8
+    (Get-Content "public/app.js") -replace '^ {8}', '' | Set-Content "public/app.js" -Encoding UTF8
+
+    Write-Host "Files extracted and cleaned."
+
+    # 2. Write new HTML
+    $newHtml = @'
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -6,7 +28,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MediaInfo Analyzer</title>
     <link rel="icon"
-        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>ðŸŽ¬</text></svg>">
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -14,7 +36,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>ðŸŽ¬ MediaInfo API</h1>
+            <h1>🎬 MediaInfo API</h1>
             <p>Powered by mediainfo.js on Vercel Serverless Functions</p>
             <span class="badge" id="apiStatus">
                 <span class="api-status status-offline" id="statusDot"></span>
@@ -48,7 +70,7 @@
                     </button>
                 </div>
                 <p style="color: #666; font-size: 14px; margin-top: 10px;">
-                    ðŸ“ Max file size: 50MB (Vercel limit)
+                    📁 Max file size: 50MB (Vercel limit)
                 </p>
             </div>
 
@@ -61,27 +83,27 @@
 
             <div class="info-cards" id="infoPanel" style="display: none;">
                 <div class="info-card">
-                    <span class="info-icon">ðŸ“„</span>
+                    <span class="info-icon">📄</span>
                     <div class="info-label">Filename</div>
                     <div class="info-value" id="fileName">-</div>
                 </div>
                 <div class="info-card">
-                    <span class="info-icon">ðŸ’¾</span>
+                    <span class="info-icon">💾</span>
                     <div class="info-label">Size</div>
                     <div class="info-value" id="fileSize">-</div>
                 </div>
                 <div class="info-card">
-                    <span class="info-icon">âš¡</span>
+                    <span class="info-icon">⚡</span>
                     <div class="info-label">Overall Bitrate</div>
                     <div class="info-value" id="overallBitrate">-</div>
                 </div>
                 <div class="info-card">
-                    <span class="info-icon">âœ…</span>
+                    <span class="info-icon">✅</span>
                     <div class="info-label">Status</div>
                     <div class="info-value" id="analysisStatus">Ready</div>
                 </div>
                 <div class="info-card">
-                    <span class="info-icon">ðŸ”—</span>
+                    <span class="info-icon">🔗</span>
                     <div class="info-label">Method</div>
                     <div class="info-value" id="analysisMethod">-</div>
                 </div>
@@ -89,7 +111,7 @@
 
             <div class="results-section">
                 <div class="results-header">
-                    <h2>ðŸ“Š Media Information</h2>
+                    <h2>📊 Media Information</h2>
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <div class="format-selector">
                             <button class="format-btn active" data-format="tree">Tree View</button>
@@ -97,7 +119,7 @@
                         </div>
                         <button class="analyze-btn" id="copyBtn" style="padding: 8px 16px; font-size: 14px;"
                             title="Copy to clipboard">
-                            ðŸ“‹ Copy
+                            📋 Copy
                         </button>
                     </div>
                 </div>
@@ -125,7 +147,7 @@
                         <div class="skeleton-line short"></div>
                         <div class="skeleton-line long"></div>
                     </div>
-                    <pre id="mediaInfoContent">âš¡ Enter a URL or upload a file to analyze</pre>
+                    <pre id="mediaInfoContent">⚡ Enter a URL or upload a file to analyze</pre>
                 </div>
             </div>
 
@@ -142,3 +164,22 @@
 </body>
 
 </html>
+'@
+    $newHtml | Set-Content "public/index.html" -Encoding UTF8
+    Write-Host "Index.html updated."
+
+    # 3. Git Operations
+    Write-Host "Adding to git..."
+    git add .
+    
+    Write-Host "Committing..."
+    git commit -m "Refactor: Separated HTML, CSS, and JS files"
+    
+    Write-Host "Pushing..."
+    git push
+
+    Write-Host "Done!"
+} catch {
+    Write-Error "Error occurred: $_"
+    exit 1
+}
