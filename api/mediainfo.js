@@ -30,12 +30,66 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const contentType = req.headers['content-type'] || '';
 
+      // Check if this is a thumbnail generation request
+      const bodyChunks = [];
+      for await (const chunk of req) {
+        bodyChunks.push(chunk);
+      }
+      const bodyBuffer = Buffer.concat(bodyChunks);
+      
+      // Reset the request stream by recreating the readable data
+      try {
+        const bodyString = bodyBuffer.toString();
+        const bodyObj = JSON.parse(bodyString);
+        
+        if (bodyObj.action === 'generateThumbnails') {
+          // Reset request for thumbnail handling
+          req.headers['content-type'] = 'application/json';
+          return await handleThumbnailGeneration(bodyBuffer, res, bodyObj);
+        }
+      } catch (e) {
+        // Not JSON, continue with original logic
+      }
+
       if (contentType.includes('multipart/form-data')) {
-        // Handle file upload
-        return await handleFileUpload(req, res);
+        // Handle file upload - reconstruct request with body
+        const busboy = Busboy({ headers: req.headers });
+        const chunks = [];
+        let filename = '';
+
+        busboy.on('file', (fieldname, file, info) => {
+          filename = info.filename;
+          file.on('data', (data) => {
+            chunks.push(data);
+          });
+        });
+
+        return new Promise((resolve) => {
+          busboy.on('finish', async () => {
+            try {
+              const buffer = Buffer.concat(chunks);
+              const mediaInfo = await analyzeWithMediaInfo(buffer);
+              const fileInfo = {
+                filename: filename,
+                size: buffer.length,
+                sizeFormatted: formatBytes(buffer.length),
+                type: 'upload'
+              };
+              resolve(res.status(200).json({
+                success: true,
+                fileInfo: fileInfo,
+                data: mediaInfo
+              }));
+            } catch (error) {
+              resolve(res.status(500).json({ error: error.message }));
+            }
+          });
+          busboy.write(bodyBuffer);
+          busboy.end();
+        });
       } else {
         // Handle JSON with URL
-        return await handleUrlAnalysis(req, res);
+        return await handleUrlAnalysis(bodyBuffer, res);
       }
     } else if (req.method === 'GET') {
       // Health check
@@ -102,88 +156,79 @@ async function handleFileUpload(req, res) {
   });
 }
 
-async function handleUrlAnalysis(req, res) {
+async function handleUrlAnalysis(bodyBuffer, res) {
   return new Promise(async (resolve) => {
     try {
-      // Read body
-      const chunks = [];
-      req.on('data', chunk => chunks.push(chunk));
-      req.on('end', async () => {
-        try {
-          const bodyString = Buffer.concat(chunks).toString();
-          if (!bodyString) {
-            return resolve(res.status(400).json({ error: 'Empty request body' }));
+      const bodyString = bodyBuffer.toString();
+      if (!bodyString) {
+        return resolve(res.status(400).json({ error: 'Empty request body' }));
+      }
+
+      let body;
+      try {
+        body = JSON.parse(bodyString);
+      } catch (parseError) {
+        return resolve(res.status(400).json({
+          error: 'Invalid JSON in request body',
+          details: parseError.message
+        }));
+      }
+
+      const { url } = body;
+
+      if (!url) {
+        return resolve(res.status(400).json({ error: 'URL is required' }));
+      }
+
+      // Validate URL
+      try {
+        new URL(url);
+      } catch {
+        return resolve(res.status(400).json({ error: 'Invalid URL' }));
+      }
+      // Convert Google Drive links to direct download
+      let downloadUrl = url;
+      if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+        const patterns = [
+          /\/file\/d\/([a-zA-Z0-9-_]+)/,
+          /id=([a-zA-Z0-9-_]+)/,
+          /\/open\?id=([a-zA-Z0-9-_]+)/
+        ];
+        let fileId = null;
+        for (const pattern of patterns) {
+          const match = url.match(pattern);
+          if (match) {
+            fileId = match[1];
+            break;
           }
-
-          let body;
-          try {
-            body = JSON.parse(bodyString);
-          } catch (parseError) {
-            return resolve(res.status(400).json({
-              error: 'Invalid JSON in request body',
-              details: parseError.message
-            }));
-          }
-
-          const { url } = body;
-
-          if (!url) {
-            return resolve(res.status(400).json({ error: 'URL is required' }));
-          }
-
-          // Validate URL
-          try {
-            new URL(url);
-          } catch {
-            return resolve(res.status(400).json({ error: 'Invalid URL' }));
-          }
-          // Convert Google Drive links to direct download
-          let downloadUrl = url;
-          if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
-            const patterns = [
-              /\/file\/d\/([a-zA-Z0-9-_]+)/,
-              /id=([a-zA-Z0-9-_]+)/,
-              /\/open\?id=([a-zA-Z0-9-_]+)/
-            ];
-            let fileId = null;
-            for (const pattern of patterns) {
-              const match = url.match(pattern);
-              if (match) {
-                fileId = match[1];
-                break;
-              }
-            }
-            if (fileId) {
-              downloadUrl = `https://gdl.anshumanpm.eu.org/direct.aspx?id=${fileId}`;
-            }
-          }
-
-          // Download first 10MB
-          const { buffer, filename, fileSize } = await downloadFirst10MB(downloadUrl);
-
-          // Analyze with MediaInfo
-          const mediaInfo = await analyzeWithMediaInfo(buffer);
-
-          // Get file info
-          const fileInfo = {
-            url: url,
-            filename: filename,
-            size: fileSize,
-            sizeFormatted: formatBytes(fileSize),
-            type: 'url',
-            isPartial: buffer.length < fileSize
-          };
-
-          return resolve(res.status(200).json({
-            success: true,
-            fileInfo: fileInfo,
-            data: mediaInfo
-          }));
-
-        } catch (error) {
-          return resolve(res.status(500).json({ error: error.message }));
         }
-      });
+        if (fileId) {
+          downloadUrl = `https://gdl.anshumanpm.eu.org/direct.aspx?id=${fileId}`;
+        }
+      }
+
+      // Download first 10MB
+      const { buffer, filename, fileSize } = await downloadFirst10MB(downloadUrl);
+
+      // Analyze with MediaInfo
+      const mediaInfo = await analyzeWithMediaInfo(buffer);
+
+      // Get file info
+      const fileInfo = {
+        url: url,
+        filename: filename,
+        size: fileSize,
+        sizeFormatted: formatBytes(fileSize),
+        type: 'url',
+        isPartial: buffer.length < fileSize
+      };
+
+      return resolve(res.status(200).json({
+        success: true,
+        fileInfo: fileInfo,
+        data: mediaInfo
+      }));
+
     } catch (error) {
       return resolve(res.status(500).json({ error: error.message }));
     }
@@ -460,4 +505,164 @@ function formatBytes(bytes) {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+async function handleThumbnailGeneration(bodyBuffer, res, bodyObj) {
+  try {
+    const { fileBuffer, count, mode, customTimestamps } = bodyObj;
+    
+    if (!fileBuffer) {
+      return res.status(400).json({ error: 'File buffer is required' });
+    }
+
+    const thumbCount = parseInt(count) || 5;
+    const generationMode = mode || 'random'; // 'random' or 'timeline'
+
+    // Convert base64 back to buffer
+    const buffer = Buffer.from(fileBuffer, 'base64');
+
+    // Generate thumbnails
+    const thumbnails = await generateThumbnails(buffer, thumbCount, generationMode, customTimestamps);
+
+    return res.status(200).json({
+      success: true,
+      count: thumbnails.length,
+      thumbnails: thumbnails
+    });
+  } catch (error) {
+    console.error('Thumbnail generation error:', error);
+    return res.status(500).json({ 
+      error: 'Thumbnail generation failed',
+      message: error.message 
+    });
+  }
+}
+
+async function generateThumbnails(buffer, count, mode, customTimestamps) {
+  return new Promise(async (resolve, reject) => {
+    // For now, return placeholder since FFmpeg might not work perfectly on Vercel
+    // In production, you'd use FFmpeg or external service
+    
+    if (!buffer || buffer.length === 0) {
+      reject(new Error('Empty buffer provided'));
+      return;
+    }
+
+    try {
+      // Try to use FFmpeg if available
+      const ffmpeg = require('fluent-ffmpeg');
+      const ffmpegPath = require('ffmpeg-static');
+      
+      ffmpeg.setFfmpegPath(ffmpegPath);
+
+      const tempDir = '/tmp';
+      const inputPath = `${tempDir}/input_${Date.now()}.tmp`;
+      const fs = require('fs');
+      
+      // Write buffer to temp file
+      fs.writeFileSync(inputPath, buffer);
+
+      const timestamps = [];
+      const thumbnails = [];
+
+      if (mode === 'random') {
+        // Get random timestamps
+        for (let i = 0; i < count; i++) {
+          const randTime = Math.random();
+          timestamps.push(randTime);
+        }
+      } else if (mode === 'timeline') {
+        // Evenly distribute throughout the video
+        for (let i = 0; i < count; i++) {
+          const percent = (i + 1) / (count + 1);
+          timestamps.push(percent);
+        }
+      } else if (customTimestamps && Array.isArray(customTimestamps)) {
+        timestamps.push(...customTimestamps);
+      }
+
+      let completed = 0;
+
+      const proc = ffmpeg(inputPath)
+        .on('filenames', (filenames) => {
+          console.log('Thumbnails will be saved as:', filenames);
+        })
+        .on('progress', (progress) => {
+          console.log('Screenshot progress:', progress);
+        })
+        .on('error', (err) => {
+          console.error('FFmpeg error:', err);
+          // Cleanup
+          try { fs.unlinkSync(inputPath); } catch (e) {}
+          reject(new Error(`FFmpeg error: ${err.message}`));
+        })
+        .on('end', () => {
+          console.log('Thumbnails generated successfully');
+          
+          // Read generated thumbnail files
+          try {
+            const files = fs.readdirSync(tempDir).filter(f => f.startsWith('thumbnail_') && f.endsWith('.png'));
+            
+            files.forEach(file => {
+              const filepath = `${tempDir}/${file}`;
+              const imageBuffer = fs.readFileSync(filepath);
+              const base64 = imageBuffer.toString('base64');
+              thumbnails.push({
+                index: thumbnails.length + 1,
+                data: `data:image/png;base64,${base64}`,
+                timestamp: timestamps[thumbnails.length]
+              });
+              try { fs.unlinkSync(filepath); } catch (e) {}
+            });
+            
+            // Cleanup input file
+            try { fs.unlinkSync(inputPath); } catch (e) {}
+            
+            resolve(thumbnails.length > 0 ? thumbnails : placeholderThumbnails(count));
+          } catch (err) {
+            console.error('Error reading thumbnails:', err);
+            try { fs.unlinkSync(inputPath); } catch (e) {}
+            resolve(placeholderThumbnails(count));
+          }
+        })
+        .screenshots({
+          count: count,
+          folder: tempDir,
+          filename: 'thumbnail_%i.png',
+          size: '320x180'
+        });
+
+    } catch (error) {
+      console.error('FFmpeg setup error:', error);
+      // Return placeholder if FFmpeg fails
+      resolve(placeholderThumbnails(count));
+    }
+  });
+}
+
+function placeholderThumbnails(count) {
+  // Return placeholder PNG images when FFmpeg isn't available
+  const placeholders = [];
+  for (let i = 0; i < count; i++) {
+    // 1x1 transparent PNG
+    const pngData = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+      0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
+      0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+      0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00,
+      0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+      0x42, 0x60, 0x82
+    ]);
+    
+    placeholders.push({
+      index: i + 1,
+      data: `data:image/png;base64,${pngData.toString('base64')}`,
+      timestamp: (i + 1) / (count + 1),
+      isPlaceholder: true
+    });
+  }
+  return placeholders;
 }

@@ -705,6 +705,171 @@
             background: #f44336;
         }
 
+        /* Thumbnail Generation Styles */
+        .thumbnail-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 13px;
+        }
+
+        .thumbnail-mode {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .radio-option input[type="radio"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        .radio-option label {
+            cursor: pointer;
+            font-size: 13px;
+            color: #374151;
+        }
+
+        .count-input {
+            padding: 10px 14px;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+            background: white;
+            width: 100%;
+        }
+
+        .count-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .thumbnails-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .thumbnail-item {
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s;
+            background: #f9fafb;
+            position: relative;
+        }
+
+        .thumbnail-item:hover {
+            border-color: #6366f1;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .thumbnail-img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            background: #1e1b4b;
+        }
+
+        .thumbnail-info {
+            padding: 8px;
+            text-align: center;
+            font-size: 12px;
+            color: #6b7280;
+            background: white;
+        }
+
+        .thumbnail-timestamp {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .thumbnail-download {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(99, 102, 241, 0.9);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .thumbnail-item:hover .thumbnail-download {
+            opacity: 1;
+        }
+
+        .thumbnail-download:hover {
+            background: rgba(99, 102, 241, 1);
+        }
+
+        /* Dark mode for thumbnails */
+        body.dark .control-label {
+            color: #e0e7ff;
+        }
+
+        body.dark .radio-option label {
+            color: #d1d5db;
+        }
+
+        body.dark .count-input {
+            background: #13112b;
+            border-color: #2d2b5e;
+            color: #e0e7ff;
+        }
+
+        body.dark .count-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        body.dark .thumbnail-item {
+            border-color: #2d2b5e;
+            background: #1a1840;
+        }
+
+        body.dark .thumbnail-item:hover {
+            border-color: #6366f1;
+        }
+
+        body.dark .thumbnail-info {
+            background: #1a1840;
+            color: #9ca3af;
+        }
+
+        body.dark .thumbnail-timestamp {
+            color: #e0e7ff;
+        }
+
         /* ===== Tablet (max-width: 768px) ===== */
         @media (max-width: 768px) {
             body {
@@ -993,6 +1158,7 @@
             <div class="tabs">
                 <div class="tab active" data-tab="url">URL Analysis</div>
                 <div class="tab" data-tab="upload">File Upload</div>
+                <div class="tab" data-tab="thumbnails">Generate Thumbnails</div>
             </div>
 
             <div class="input-section" id="urlTab">
@@ -1016,6 +1182,39 @@
                 <p style="color: #666; font-size: 14px; margin-top: 10px;">
                     📁 Max file size: 50MB (Vercel limit)
                 </p>
+            </div>
+
+            <div class="input-section" id="thumbnailsTab" style="display: none;">
+                <div class="thumbnail-controls">
+                    <div class="control-group">
+                        <label class="control-label">Number of Thumbnails</label>
+                        <input type="number" class="count-input" id="thumbnailCount" min="1" max="20" value="5">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Generation Mode</label>
+                        <div class="thumbnail-mode">
+                            <label class="radio-option">
+                                <input type="radio" name="thumbMode" value="random" checked>
+                                <label style="margin: 0;">Random</label>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="thumbMode" value="timeline">
+                                <label style="margin: 0;">Timeline</label>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="url-input-group">
+                    <input type="file" class="file-input" id="thumbnailFileInput"
+                        accept="video/*,.mp4,.mkv,.avi,.mov,.webm,.flv">
+                    <button class="analyze-btn" id="generateThumbBtn">
+                        <span class="btn-text">Generate Thumbnails</span>
+                    </button>
+                </div>
+                <p style="color: #666; font-size: 14px; margin-top: 10px;">
+                    🎬 Select a video file and click Generate Thumbnails
+                </p>
+                <div id="thumbnailsGrid" class="thumbnails-grid" style="display: none;"></div>
             </div>
 
             <div class="progress-container" id="progressContainer">
@@ -1475,18 +1674,23 @@
             const tabs = document.querySelectorAll('.tab');
             const urlTab = document.getElementById('urlTab');
             const uploadTab = document.getElementById('uploadTab');
+            const thumbnailsTab = document.getElementById('thumbnailsTab');
 
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
                     tabs.forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
 
+                    urlTab.style.display = 'none';
+                    uploadTab.style.display = 'none';
+                    thumbnailsTab.style.display = 'none';
+
                     if (tab.dataset.tab === 'url') {
                         urlTab.style.display = 'block';
-                        uploadTab.style.display = 'none';
-                    } else {
-                        urlTab.style.display = 'none';
+                    } else if (tab.dataset.tab === 'upload') {
                         uploadTab.style.display = 'block';
+                    } else if (tab.dataset.tab === 'thumbnails') {
+                        thumbnailsTab.style.display = 'block';
                     }
                 });
             });
@@ -1537,6 +1741,113 @@
                     btn.querySelector('.btn-text').textContent = 'Upload & Analyze';
                 }
             });
+
+            // Thumbnail generation
+            document.getElementById('generateThumbBtn').addEventListener('click', async () => {
+                const fileInput = document.getElementById('thumbnailFileInput');
+                const file = fileInput.files[0];
+
+                if (!file) {
+                    alert('Please select a video file');
+                    return;
+                }
+
+                const count = parseInt(document.getElementById('thumbnailCount').value) || 5;
+                const mode = document.querySelector('input[name="thumbMode"]:checked')?.value || 'random';
+
+                const btn = document.getElementById('generateThumbBtn');
+                btn.disabled = true;
+                btn.querySelector('.btn-text').innerHTML = '<span class="loader"></span>Generating...';
+                
+                client.updateStatus('Generating thumbnails...', 'info');
+                client.showProgress(true);
+
+                try {
+                    const fileData = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            // Convert to base64
+                            const base64 = e.target.result.split(',')[1];
+                            resolve(base64);
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+
+                    const response = await fetch('/api/mediainfo', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            action: 'generateThumbnails',
+                            fileBuffer: fileData,
+                            count: count,
+                            mode: mode
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || `HTTP ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    displayThumbnails(result.thumbnails);
+                    client.updateStatus('Thumbnails generated successfully!', 'success');
+
+                } catch (error) {
+                    client.showError('Thumbnail generation failed: ' + error.message);
+                    client.updateStatus('Generation failed', 'error');
+                    console.error('Thumbnail error:', error);
+                } finally {
+                    btn.disabled = false;
+                    btn.querySelector('.btn-text').textContent = 'Generate Thumbnails';
+                    client.showProgress(false);
+                }
+            });
+
+            // Function to display thumbnails
+            function displayThumbnails(thumbnails) {
+                const grid = document.getElementById('thumbnailsGrid');
+                grid.innerHTML = '';
+                grid.style.display = 'grid';
+
+                thumbnails.forEach((thumb, idx) => {
+                    const item = document.createElement('div');
+                    item.className = 'thumbnail-item';
+                    
+                    const time = (thumb.timestamp * 100).toFixed(1);
+                    
+                    item.innerHTML = `
+                        <img src="${thumb.data}" class="thumbnail-img" alt="Thumbnail ${idx + 1}">
+                        <button class="thumbnail-download" data-index="${idx}" title="Download">
+                            ⬇️
+                        </button>
+                        <div class="thumbnail-info">
+                            <div class="thumbnail-timestamp">#${idx + 1}</div>
+                            <div>${time}%</div>
+                        </div>
+                    `;
+
+                    item.querySelector('.thumbnail-download').addEventListener('click', (e) => {
+                        e.preventDefault();
+                        downloadThumbnail(thumb.data, `thumbnail_${idx + 1}.png`);
+                    });
+
+                    grid.appendChild(item);
+                });
+            }
+
+            // Function to download thumbnail
+            function downloadThumbnail(dataUrl, filename) {
+                const link = document.createElement('a');
+                link.href = dataUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
 
             // Format selector
             document.querySelectorAll('.format-btn').forEach(btn => {
