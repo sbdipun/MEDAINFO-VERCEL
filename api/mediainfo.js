@@ -156,22 +156,15 @@ async function handleFileUpload(req, res) {
   });
 }
 
-async function handleUrlAnalysis(req, res) {
+async function handleUrlAnalysis(bodyBuffer, res) {
   try {
-    // Read body
-    const chunks = [];
-    for await (const chunk of req) {
-      chunks.push(chunk);
-    }
-
-    const bodyString = Buffer.concat(chunks).toString();
-    if (!bodyString) {
+    if (!bodyBuffer || bodyBuffer.length === 0) {
       return res.status(400).json({ error: 'Empty request body' });
     }
 
     let body;
     try {
-      body = JSON.parse(bodyString);
+      body = JSON.parse(bodyBuffer.toString());
     } catch (parseError) {
       return res.status(400).json({
         error: 'Invalid JSON in request body',
