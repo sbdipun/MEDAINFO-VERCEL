@@ -3,6 +3,11 @@ import fetch from 'node-fetch';
 import Busboy from 'busboy';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import ffmpegPath from 'ffmpeg-static';
+import { spawn } from 'child_process';
+import os from 'os';
+import fs from 'fs/promises';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -545,20 +550,35 @@ function formatBytes(bytes) {
 
 async function handleThumbnailGeneration(bodyBuffer, res, bodyObj) {
   try {
-    const { fileBuffer, count, mode, customTimestamps } = bodyObj;
+    const { fileBuffer, url, count, mode, customTimestamps } = bodyObj;
     
-    if (!fileBuffer) {
-      return res.status(400).json({ error: 'File buffer is required' });
+    if (!fileBuffer && !url) {
+      return res.status(400).json({ error: 'Either fileBuffer or url is required' });
     }
 
-    const thumbCount = parseInt(count) || 5;
+    const thumbCount = clampInt(parseInt(count) || 5, 1, 8);
     const generationMode = mode || 'random'; // 'random' or 'timeline'
 
-    // Convert base64 back to buffer
-    const buffer = Buffer.from(fileBuffer, 'base64');
+    let thumbnails = [];
 
-    // Generate thumbnails
-    const thumbnails = await generateThumbnails(buffer, thumbCount, generationMode, customTimestamps);
+    if (url) {
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(url);
+      } catch {
+        return res.status(400).json({ error: 'Invalid URL' });
+      }
+
+      if (isPrivateUrl(parsedUrl)) {
+        return res.status(400).json({ error: 'Access to private/internal URLs is forbidden' });
+      }
+
+      thumbnails = await generateThumbnailsFromUrl(url, thumbCount, generationMode, customTimestamps);
+    } else {
+      // Convert base64 back to buffer
+      const buffer = Buffer.from(fileBuffer, 'base64');
+      thumbnails = await generateThumbnailsFromBuffer(buffer, thumbCount, generationMode, customTimestamps);
+    }
 
     return res.status(200).json({
       success: true,
@@ -574,57 +594,147 @@ async function handleThumbnailGeneration(bodyBuffer, res, bodyObj) {
   }
 }
 
-async function generateThumbnails(buffer, count, mode, customTimestamps) {
-  // Generate placeholder thumbnails (FFmpeg not available on Vercel)
-  // For production, integrate with Cloudinary or Mux API
-  
+function clampInt(value, min, max) {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, value));
+}
+
+function formatTimestamp(seconds) {
+  const s = Math.max(0, Number(seconds) || 0);
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const ssFixed = ss.toFixed(3).padStart(6, '0');
+  return `${pad2(hh)}:${pad2(mm)}:${ssFixed}`;
+}
+
+function pickRandomTimestamps(durationSeconds, count) {
+  const d = Number(durationSeconds);
+  if (!Number.isFinite(d) || d <= 0) return [];
+
+  const minT = Math.min(3, d * 0.05);
+  const maxT = Math.max(0, d - Math.min(3, d * 0.05));
+  const picked = new Set();
+
+  // Best-effort uniqueness at 10ms resolution.
+  while (picked.size < count && picked.size < Math.floor((maxT - minT) * 100)) {
+    const t = minT + Math.random() * Math.max(0.001, maxT - minT);
+    picked.add(Math.round(t * 100) / 100);
+  }
+
+  return Array.from(picked).sort((a, b) => a - b);
+}
+
+async function runFfmpeg(args, { allowNonZeroExit = false } = {}) {
+  if (!ffmpegPath) {
+    throw new Error('ffmpeg-static path not found (dependency missing?)');
+  }
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(ffmpegPath, args, { windowsHide: true });
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', (d) => (stdout += d.toString()));
+    child.stderr.on('data', (d) => (stderr += d.toString()));
+
+    child.on('error', (err) => reject(err));
+    child.on('close', (code) => {
+      if (code === 0 || allowNonZeroExit) {
+        resolve({ code, stdout, stderr });
+        return;
+      }
+      reject(new Error(stderr || `ffmpeg exited with code ${code}`));
+    });
+  });
+}
+
+async function probeDurationSecondsFromUrl(url) {
+  const { stderr } = await runFfmpeg(['-hide_banner', '-i', url], { allowNonZeroExit: true });
+  const m = stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  const ss = Number(m[3]);
+  if (![hh, mm, ss].every((n) => Number.isFinite(n))) return null;
+  return hh * 3600 + mm * 60 + ss;
+}
+
+async function extractThumbnailFromUrl(url, seconds) {
+  const tmpDir = os.tmpdir();
+  const id = crypto.randomBytes(8).toString('hex');
+  const outPath = path.join(tmpDir, `thumb-${id}.jpg`);
+
+  try {
+    // -ss before -i for faster seeks when possible. Not all HTTP servers support it.
+    await runFfmpeg([
+      '-hide_banner',
+      '-loglevel', 'error',
+      '-ss', String(seconds),
+      '-i', url,
+      '-frames:v', '1',
+      '-vf', 'scale=min(480\\,iw):-1',
+      '-q:v', '3',
+      '-y',
+      outPath
+    ]);
+
+    const buf = await fs.readFile(outPath);
+    return `data:image/jpeg;base64,${buf.toString('base64')}`;
+  } finally {
+    try {
+      await fs.unlink(outPath);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+async function generateThumbnailsFromUrl(url, count, mode, customTimestamps) {
+  const duration = await probeDurationSecondsFromUrl(url);
+  if (!duration) {
+    throw new Error('Could not determine duration (URL may be unsupported or not a video file)');
+  }
+
+  let timestamps = [];
+  if (mode === 'timeline') {
+    for (let i = 0; i < count; i++) {
+      const t = ((i + 1) / (count + 1)) * duration;
+      timestamps.push(Math.round(t * 100) / 100);
+    }
+  } else if (customTimestamps && Array.isArray(customTimestamps) && customTimestamps.length) {
+    timestamps = customTimestamps
+      .map((t) => Number(t))
+      .filter((t) => Number.isFinite(t) && t >= 0 && t <= duration)
+      .slice(0, count);
+  } else {
+    timestamps = pickRandomTimestamps(duration, count);
+  }
+
+  const thumbs = [];
+  for (let i = 0; i < timestamps.length; i++) {
+    const t = timestamps[i];
+    const data = await extractThumbnailFromUrl(url, t);
+    thumbs.push({
+      index: i + 1,
+      timestampSeconds: t,
+      timestamp: formatTimestamp(t),
+      data
+    });
+  }
+
+  return thumbs;
+}
+
+async function generateThumbnailsFromBuffer(buffer, count, mode, customTimestamps) {
   if (!buffer || buffer.length === 0) {
     throw new Error('Empty buffer provided');
   }
 
-  const thumbnails = [];
-  const timestamps = [];
-
-  if (mode === 'random') {
-    // Get random timestamps
-    for (let i = 0; i < count; i++) {
-      const randTime = Math.random();
-      timestamps.push(randTime);
-    }
-  } else if (mode === 'timeline') {
-    // Evenly distribute throughout the video
-    for (let i = 0; i < count; i++) {
-      const percent = (i + 1) / (count + 1);
-      timestamps.push(percent);
-    }
-  } else if (customTimestamps && Array.isArray(customTimestamps)) {
-    timestamps.push(...customTimestamps);
-  }
-
-  // Return placeholder PNG images
-  for (let i = 0; i < count; i++) {
-    // 1x1 transparent PNG
-    const pngData = Buffer.from([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
-      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-      0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
-      0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
-      0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
-      0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00,
-      0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
-      0x42, 0x60, 0x82
-    ]);
-    
-    thumbnails.push({
-      index: i + 1,
-      data: `data:image/png;base64,${pngData.toString('base64')}`,
-      timestamp: timestamps[i],
-      note: 'Placeholder - Use Cloudinary or Mux for actual video thumbnails'
-    });
-  }
-  
-  return thumbnails;
+  // Buffer-based thumbnails aren't supported in this build; keep the API explicit.
+  // (Vercel serverless has limited temp space and execution time. URL is the intended path.)
+  throw new Error('Thumbnail generation from uploaded buffer is not implemented; use a URL instead.');
 }
 
 function placeholderThumbnails(count) {
