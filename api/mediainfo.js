@@ -1,4 +1,4 @@
-import mediaInfoFactory from 'mediainfo.js';
+﻿import mediaInfoFactory from 'mediainfo.js';
 import fetch from 'node-fetch';
 import Busboy from 'busboy';
 import path from 'path';
@@ -485,11 +485,11 @@ async function analyzeWithMediaInfo(buffer) {
           console.log(`  - ${testPath}`);
           try {
             if (fs.existsSync(testPath)) {
-              console.log(`  ✓ Found at: ${testPath}`);
+              console.log(`  [ok] Found at: ${testPath}`);
               return testPath;
             }
           } catch (e) {
-            console.log(`  ✗ Error checking: ${e.message}`);
+            console.log(`  [x] Error checking: ${e.message}`);
           }
         }
 
@@ -875,3 +875,4 @@ function placeholderThumbnails(count) {
   // Deprecated - use generateThumbnails instead
   return [];
 }
+

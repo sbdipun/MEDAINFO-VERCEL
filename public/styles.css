@@ -553,7 +553,7 @@ body {
 }
 
 .theme-toggle::after {
-    content: 'â˜€ï¸';
+    content: 'L';
     position: absolute;
     top: 2px;
     left: 2px;
@@ -574,7 +574,7 @@ body.dark .theme-toggle {
 }
 
 body.dark .theme-toggle::after {
-    content: 'ðŸŒ™';
+    content: 'D';
     transform: translateX(20px);
     background: #1e1b4b;
 }

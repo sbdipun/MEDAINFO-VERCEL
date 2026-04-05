@@ -552,7 +552,7 @@
       preview.type = 'button';
       preview.textContent = 'Preview';
       preview.addEventListener('click', () => {
-        window.openPreviewModal(t.data, `Thumbnail ${t.index || ''} • ${t.timestamp || ''}`);
+        window.openPreviewModal(t.data, `Thumbnail ${t.index || ''} - ${t.timestamp || ''}`);
       });
 
       item.appendChild(img);
@@ -600,7 +600,7 @@
         window.openComparePreviewModal(
           pair.imageA,
           pair.imageB,
-          `Compare • ${pair.timestamp || ''}`,
+          `Compare - ${pair.timestamp || ''}`,
           'URL A',
           'URL B'
         );
@@ -621,7 +621,7 @@
         window.openComparePreviewModal(
           pair.imageA,
           pair.imageB,
-          `Compare • ${pair.timestamp || ''}`,
+          `Compare - ${pair.timestamp || ''}`,
           'URL A',
           'URL B'
         );
