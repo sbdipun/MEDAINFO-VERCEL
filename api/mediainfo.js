@@ -671,13 +671,44 @@ async function runFfmpeg(args, { allowNonZeroExit = false } = {}) {
         resolve({ code, stdout, stderr });
         return;
       }
-      reject(new Error(stderr || `ffmpeg exited with code ${code}`));
+      const reason = stderr || `ffmpeg exited with code ${code}`;
+      if (/403\s+Forbidden|access denied/i.test(reason)) {
+        reject(new Error('Remote server denied ffmpeg access (HTTP 403). The URL is protected or requires browser/session authentication.'));
+        return;
+      }
+      reject(new Error(reason));
     });
   });
 }
 
+function buildFfmpegHttpInputArgs(url) {
+  const args = [
+    '-user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+  ];
+
+  try {
+    const parsed = new URL(url);
+    const origin = `${parsed.protocol}//${parsed.host}`;
+    const headers = [
+      'Accept: */*',
+      'Connection: keep-alive',
+      `Referer: ${origin}/`,
+      `Origin: ${origin}`
+    ].join('\r\n') + '\r\n';
+    args.push('-headers', headers);
+  } catch {
+    // If URL parsing fails here, ffmpeg input validation will fail later anyway.
+  }
+
+  return args;
+}
+
 async function probeDurationSecondsFromUrl(url) {
-  const { stderr } = await runFfmpeg(['-hide_banner', '-i', url], { allowNonZeroExit: true });
+  const { stderr } = await runFfmpeg([
+    '-hide_banner',
+    ...buildFfmpegHttpInputArgs(url),
+    '-i', url
+  ], { allowNonZeroExit: true });
   const m = stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
   if (!m) return null;
   const hh = Number(m[1]);
@@ -698,6 +729,7 @@ async function extractThumbnailFromUrl(url, seconds) {
       '-hide_banner',
       '-loglevel', 'error',
       '-ss', String(seconds),
+      ...buildFfmpegHttpInputArgs(url),
       '-i', url,
       '-frames:v', '1',
       '-an',
