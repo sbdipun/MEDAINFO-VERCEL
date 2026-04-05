@@ -551,8 +551,8 @@ function formatBytes(bytes) {
 async function handleThumbnailGeneration(bodyBuffer, res, bodyObj) {
   try {
     const { action, fileBuffer, url, urlA, urlB, count, mode, customTimestamps } = bodyObj;
-    
-    const thumbCount = clampInt(parseInt(count) || 5, 1, 8);
+    const deadline = Date.now() + 25000;
+    const thumbCount = clampInt(parseInt(count) || 5, 1, action === 'compareThumbnails' ? 4 : 8);
     const generationMode = mode || 'random'; // 'random' or 'timeline'
 
     if (action === 'compareThumbnails') {
@@ -573,7 +573,14 @@ async function handleThumbnailGeneration(bodyBuffer, res, bodyObj) {
         return res.status(400).json({ error: 'Access to private/internal URLs is forbidden' });
       }
 
-      const pairs = await generateThumbnailPairsFromUrls(urlA, urlB, thumbCount, generationMode, customTimestamps);
+      const pairs = await generateThumbnailPairsFromUrls(
+        urlA,
+        urlB,
+        thumbCount,
+        generationMode,
+        customTimestamps,
+        { deadline }
+      );
       return res.status(200).json({
         success: true,
         count: pairs.length,
@@ -599,7 +606,7 @@ async function handleThumbnailGeneration(bodyBuffer, res, bodyObj) {
         return res.status(400).json({ error: 'Access to private/internal URLs is forbidden' });
       }
 
-      thumbnails = await generateThumbnailsFromUrl(url, thumbCount, generationMode, customTimestamps);
+      thumbnails = await generateThumbnailsFromUrl(url, thumbCount, generationMode, customTimestamps, { deadline });
     } else {
       // Convert base64 back to buffer
       const buffer = Buffer.from(fileBuffer, 'base64');
@@ -652,21 +659,54 @@ function pickRandomTimestamps(durationSeconds, count) {
   return Array.from(picked).sort((a, b) => a - b);
 }
 
-async function runFfmpeg(args, { allowNonZeroExit = false } = {}) {
+function ensureTimeBudget(deadline, minimumMs, stage) {
+  if (!deadline) return;
+  const remaining = deadline - Date.now();
+  if (remaining < minimumMs) {
+    throw new Error(`Timed out while ${stage}. Please reduce compare count or use faster/public URLs.`);
+  }
+}
+
+function timeoutWithinBudget(deadline, desiredMs, floorMs = 1500) {
+  if (!deadline) return desiredMs;
+  const remaining = Math.max(0, deadline - Date.now() - 500);
+  return Math.max(floorMs, Math.min(desiredMs, remaining));
+}
+
+async function runFfmpeg(args, { allowNonZeroExit = false, timeoutMs = 20000 } = {}) {
   if (!ffmpegPath) {
     throw new Error('ffmpeg-static path not found (dependency missing?)');
   }
 
   return new Promise((resolve, reject) => {
-    const child = spawn(ffmpegPath, args, { windowsHide: true });
+    const child = spawn(ffmpegPath, ['-nostdin', ...args], { windowsHide: true });
     let stdout = '';
     let stderr = '';
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        // ignore
+      }
+      reject(new Error(`ffmpeg timed out after ${Math.round(timeoutMs / 1000)}s`));
+    }, Math.max(1000, timeoutMs));
 
     child.stdout.on('data', (d) => (stdout += d.toString()));
     child.stderr.on('data', (d) => (stderr += d.toString()));
 
-    child.on('error', (err) => reject(err));
+    child.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      reject(err);
+    });
     child.on('close', (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
       if (code === 0 || allowNonZeroExit) {
         resolve({ code, stdout, stderr });
         return;
@@ -683,6 +723,7 @@ async function runFfmpeg(args, { allowNonZeroExit = false } = {}) {
 
 function buildFfmpegHttpInputArgs(url) {
   const args = [
+    '-rw_timeout', '10000000',
     '-user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
   ];
 
@@ -703,12 +744,17 @@ function buildFfmpegHttpInputArgs(url) {
   return args;
 }
 
-async function probeDurationSecondsFromUrl(url) {
+async function probeDurationSecondsFromUrl(url, options = {}) {
+  const { deadline } = options;
+  ensureTimeBudget(deadline, 2500, 'probing video duration');
   const { stderr } = await runFfmpeg([
     '-hide_banner',
     ...buildFfmpegHttpInputArgs(url),
     '-i', url
-  ], { allowNonZeroExit: true });
+  ], {
+    allowNonZeroExit: true,
+    timeoutMs: timeoutWithinBudget(deadline, 7000)
+  });
   const m = stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
   if (!m) return null;
   const hh = Number(m[1]);
@@ -718,7 +764,9 @@ async function probeDurationSecondsFromUrl(url) {
   return hh * 3600 + mm * 60 + ss;
 }
 
-async function extractThumbnailFromUrl(url, seconds) {
+async function extractThumbnailFromUrl(url, seconds, options = {}) {
+  const { deadline } = options;
+  ensureTimeBudget(deadline, 1800, 'extracting thumbnail');
   const tmpDir = os.tmpdir();
   const id = crypto.randomBytes(8).toString('hex');
   const outPath = path.join(tmpDir, `thumb-${id}.png`);
@@ -738,7 +786,7 @@ async function extractThumbnailFromUrl(url, seconds) {
       '-compression_level', '3',
       '-y',
       outPath
-    ]);
+    ], { timeoutMs: timeoutWithinBudget(deadline, 5000) });
 
     const buf = await fs.readFile(outPath);
     return `data:image/png;base64,${buf.toString('base64')}`;
@@ -758,7 +806,9 @@ function clampSeconds(seconds, duration) {
   return Math.max(0, Math.min(t, Math.max(0, duration - 0.05)));
 }
 
-async function extractThumbnailWithFallback(url, targetSeconds, duration) {
+async function extractThumbnailWithFallback(url, targetSeconds, duration, options = {}) {
+  const { maxAttempts = 2, deadline } = options;
+  ensureTimeBudget(deadline, 1800, 'extracting fallback thumbnails');
   const base = clampSeconds(targetSeconds, duration);
   const candidates = [
     base,
@@ -774,9 +824,10 @@ async function extractThumbnailWithFallback(url, targetSeconds, duration) {
   }
 
   let lastError = null;
-  for (const t of uniqueCandidates) {
+  for (const t of uniqueCandidates.slice(0, Math.max(1, maxAttempts))) {
+    ensureTimeBudget(deadline, 1400, 'extracting fallback thumbnails');
     try {
-      const data = await extractThumbnailFromUrl(url, t);
+      const data = await extractThumbnailFromUrl(url, t, { deadline });
       return { data, actualSeconds: t };
     } catch (error) {
       lastError = error;
@@ -803,8 +854,10 @@ async function mapWithConcurrency(items, concurrency, mapper) {
   return results;
 }
 
-async function generateThumbnailsFromUrl(url, count, mode, customTimestamps) {
-  const duration = await probeDurationSecondsFromUrl(url);
+async function generateThumbnailsFromUrl(url, count, mode, customTimestamps, options = {}) {
+  const { deadline } = options;
+  ensureTimeBudget(deadline, 3500, 'starting thumbnail generation');
+  const duration = await probeDurationSecondsFromUrl(url, { deadline });
   if (!duration) {
     throw new Error('Could not determine duration (URL may be unsupported or not a video file)');
   }
@@ -825,7 +878,10 @@ async function generateThumbnailsFromUrl(url, count, mode, customTimestamps) {
   }
 
   const thumbnails = await mapWithConcurrency(timestamps, 3, async (t, i) => {
-    const { data, actualSeconds } = await extractThumbnailWithFallback(url, t, duration);
+    const { data, actualSeconds } = await extractThumbnailWithFallback(url, t, duration, {
+      maxAttempts: 2,
+      deadline
+    });
     return {
       index: i + 1,
       timestampSeconds: actualSeconds,
@@ -841,10 +897,12 @@ async function generateThumbnailsFromUrl(url, count, mode, customTimestamps) {
   return thumbnails;
 }
 
-async function generateThumbnailPairsFromUrls(urlA, urlB, count, mode, customTimestamps) {
+async function generateThumbnailPairsFromUrls(urlA, urlB, count, mode, customTimestamps, options = {}) {
+  const { deadline } = options;
+  ensureTimeBudget(deadline, 6000, 'starting URL comparison');
   const [durationA, durationB] = await Promise.all([
-    probeDurationSecondsFromUrl(urlA),
-    probeDurationSecondsFromUrl(urlB)
+    probeDurationSecondsFromUrl(urlA, { deadline }),
+    probeDurationSecondsFromUrl(urlB, { deadline })
   ]);
 
   if (!durationA || !durationB) {
@@ -872,9 +930,10 @@ async function generateThumbnailPairsFromUrls(urlA, urlB, count, mode, customTim
   }
 
   const pairs = await mapWithConcurrency(timestamps, 2, async (t, i) => {
+    ensureTimeBudget(deadline, 2200, 'generating thumbnail pairs');
     const [dataA, dataB] = await Promise.all([
-      extractThumbnailWithFallback(urlA, t, durationA),
-      extractThumbnailWithFallback(urlB, t, durationB)
+      extractThumbnailWithFallback(urlA, t, durationA, { maxAttempts: 1, deadline }),
+      extractThumbnailWithFallback(urlB, t, durationB, { maxAttempts: 1, deadline })
     ]);
 
     return {

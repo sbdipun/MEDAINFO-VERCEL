@@ -180,6 +180,9 @@
       try {
         parsed = raw ? JSON.parse(raw) : {};
       } catch (_error) {
+        if (response.status === 504 || (raw || '').includes('FUNCTION_INVOCATION_TIMEOUT')) {
+          throw new Error('Server timed out while generating thumbnails. Try fewer pairs (1-3) or use faster direct media URLs.');
+        }
         const preview = (raw || '').replace(/\s+/g, ' ').slice(0, 180);
         throw new Error(`Server returned non-JSON response (HTTP ${response.status}): ${preview || 'empty body'}`);
       }
