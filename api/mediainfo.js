@@ -719,6 +719,41 @@ async function extractThumbnailFromUrl(url, seconds) {
   }
 }
 
+function clampSeconds(seconds, duration) {
+  const t = Number(seconds);
+  if (!Number.isFinite(t)) return 0;
+  if (!Number.isFinite(duration) || duration <= 0) return Math.max(0, t);
+  return Math.max(0, Math.min(t, Math.max(0, duration - 0.05)));
+}
+
+async function extractThumbnailWithFallback(url, targetSeconds, duration) {
+  const base = clampSeconds(targetSeconds, duration);
+  const candidates = [
+    base,
+    base + 0.5,
+    base - 0.5,
+    base + 1.25,
+    base - 1.25
+  ].map((t) => Math.round(clampSeconds(t, duration) * 100) / 100);
+
+  const uniqueCandidates = [];
+  for (const t of candidates) {
+    if (!uniqueCandidates.includes(t)) uniqueCandidates.push(t);
+  }
+
+  let lastError = null;
+  for (const t of uniqueCandidates) {
+    try {
+      const data = await extractThumbnailFromUrl(url, t);
+      return { data, actualSeconds: t };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(`No frame could be extracted near ${formatTimestamp(base)}${lastError ? ` (${lastError.message})` : ''}`);
+}
+
 async function mapWithConcurrency(items, concurrency, mapper) {
   const limit = Math.max(1, Math.min(concurrency, items.length));
   const results = new Array(items.length);
@@ -757,15 +792,21 @@ async function generateThumbnailsFromUrl(url, count, mode, customTimestamps) {
     timestamps = pickRandomTimestamps(duration, count);
   }
 
-  return await mapWithConcurrency(timestamps, 3, async (t, i) => {
-    const data = await extractThumbnailFromUrl(url, t);
+  const thumbnails = await mapWithConcurrency(timestamps, 3, async (t, i) => {
+    const { data, actualSeconds } = await extractThumbnailWithFallback(url, t, duration);
     return {
       index: i + 1,
-      timestampSeconds: t,
-      timestamp: formatTimestamp(t),
+      timestampSeconds: actualSeconds,
+      timestamp: formatTimestamp(actualSeconds),
       data
     };
   });
+
+  if (!thumbnails.length) {
+    throw new Error('No thumbnails could be generated from the provided URL');
+  }
+
+  return thumbnails;
 }
 
 async function generateThumbnailPairsFromUrls(urlA, urlB, count, mode, customTimestamps) {
@@ -798,20 +839,26 @@ async function generateThumbnailPairsFromUrls(urlA, urlB, count, mode, customTim
     timestamps = pickRandomTimestamps(usableDuration, count);
   }
 
-  return await mapWithConcurrency(timestamps, 2, async (t, i) => {
+  const pairs = await mapWithConcurrency(timestamps, 2, async (t, i) => {
     const [dataA, dataB] = await Promise.all([
-      extractThumbnailFromUrl(urlA, t),
-      extractThumbnailFromUrl(urlB, t)
+      extractThumbnailWithFallback(urlA, t, durationA),
+      extractThumbnailWithFallback(urlB, t, durationB)
     ]);
 
     return {
       index: i + 1,
       timestampSeconds: t,
       timestamp: formatTimestamp(t),
-      imageA: dataA,
-      imageB: dataB
+      imageA: dataA.data,
+      imageB: dataB.data
     };
   });
+
+  if (!pairs.length) {
+    throw new Error('No thumbnail pairs could be generated from the provided URLs');
+  }
+
+  return pairs;
 }
 
 async function generateThumbnailsFromBuffer(buffer, count, mode, customTimestamps) {

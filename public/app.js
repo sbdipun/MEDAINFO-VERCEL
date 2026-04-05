@@ -185,7 +185,12 @@
       }
 
       if (!response.ok) {
-        throw new Error(parsed.error || parsed.message || `HTTP ${response.status}`);
+        const primary = parsed.error || `HTTP ${response.status}`;
+        const details = parsed.message;
+        if (details && details !== primary) {
+          throw new Error(`${primary}: ${details}`);
+        }
+        throw new Error(primary);
       }
 
       return parsed;
