@@ -551,8 +551,8 @@ function formatBytes(bytes) {
 async function handleThumbnailGeneration(bodyBuffer, res, bodyObj) {
   try {
     const { action, fileBuffer, url, urlA, urlB, count, mode, customTimestamps } = bodyObj;
-    const deadline = Date.now() + 25000;
-    const thumbCount = clampInt(parseInt(count) || 5, 1, action === 'compareThumbnails' ? 4 : 8);
+    const deadline = Date.now() + 45000;
+    const thumbCount = clampInt(parseInt(count) || 5, 1, action === 'compareThumbnails' ? 3 : 8);
     const generationMode = mode || 'random'; // 'random' or 'timeline'
 
     if (action === 'compareThumbnails') {
@@ -746,14 +746,14 @@ function buildFfmpegHttpInputArgs(url) {
 
 async function probeDurationSecondsFromUrl(url, options = {}) {
   const { deadline } = options;
-  ensureTimeBudget(deadline, 2500, 'probing video duration');
+  ensureTimeBudget(deadline, 4000, 'probing video duration');
   const { stderr } = await runFfmpeg([
     '-hide_banner',
     ...buildFfmpegHttpInputArgs(url),
     '-i', url
   ], {
     allowNonZeroExit: true,
-    timeoutMs: timeoutWithinBudget(deadline, 7000)
+    timeoutMs: timeoutWithinBudget(deadline, 12000)
   });
   const m = stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
   if (!m) return null;
@@ -766,7 +766,7 @@ async function probeDurationSecondsFromUrl(url, options = {}) {
 
 async function extractThumbnailFromUrl(url, seconds, options = {}) {
   const { deadline } = options;
-  ensureTimeBudget(deadline, 1800, 'extracting thumbnail');
+  ensureTimeBudget(deadline, 2500, 'extracting thumbnail');
   const tmpDir = os.tmpdir();
   const id = crypto.randomBytes(8).toString('hex');
   const outPath = path.join(tmpDir, `thumb-${id}.png`);
@@ -786,7 +786,7 @@ async function extractThumbnailFromUrl(url, seconds, options = {}) {
       '-compression_level', '3',
       '-y',
       outPath
-    ], { timeoutMs: timeoutWithinBudget(deadline, 5000) });
+    ], { timeoutMs: timeoutWithinBudget(deadline, 10000) });
 
     const buf = await fs.readFile(outPath);
     return `data:image/png;base64,${buf.toString('base64')}`;
@@ -808,7 +808,7 @@ function clampSeconds(seconds, duration) {
 
 async function extractThumbnailWithFallback(url, targetSeconds, duration, options = {}) {
   const { maxAttempts = 2, deadline } = options;
-  ensureTimeBudget(deadline, 1800, 'extracting fallback thumbnails');
+  ensureTimeBudget(deadline, 2500, 'extracting fallback thumbnails');
   const base = clampSeconds(targetSeconds, duration);
   const candidates = [
     base,
@@ -825,7 +825,7 @@ async function extractThumbnailWithFallback(url, targetSeconds, duration, option
 
   let lastError = null;
   for (const t of uniqueCandidates.slice(0, Math.max(1, maxAttempts))) {
-    ensureTimeBudget(deadline, 1400, 'extracting fallback thumbnails');
+    ensureTimeBudget(deadline, 1800, 'extracting fallback thumbnails');
     try {
       const data = await extractThumbnailFromUrl(url, t, { deadline });
       return { data, actualSeconds: t };
