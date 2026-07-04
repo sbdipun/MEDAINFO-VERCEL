@@ -10,17 +10,23 @@
     "build": "echo 'Build complete'"
   },
   "dependencies": {
-    "mediainfo.js": "^0.1.9",
-    "node-fetch": "^3.3.2",
     "busboy": "^1.6.0",
-    "cors": "^2.8.5",
+    "cors": "^2.8.6",
+    "ffmpeg-static": "^5.3.0",
     "mediabunny": "^1.0.0",
-    "ffmpeg-static": "^5.2.0"
+    "mediainfo.js": "^0.3.7",
+    "node-fetch": "^3.3.2"
   },
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
-  "keywords": ["mediainfo", "video", "audio", "vercel", "serverless"],
+  "keywords": [
+    "mediainfo",
+    "video",
+    "audio",
+    "vercel",
+    "serverless"
+  ],
   "author": "Your Name",
   "license": "MIT"
 }
