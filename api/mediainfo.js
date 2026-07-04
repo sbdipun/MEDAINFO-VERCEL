@@ -667,9 +667,9 @@ function ensureTimeBudget(deadline, minimumMs, stage) {
   }
 }
 
-function timeoutWithinBudget(deadline, desiredMs, floorMs = 1500) {
+function timeoutWithinBudget(deadline, desiredMs, floorMs = 8000) {
   if (!deadline) return desiredMs;
-  const remaining = Math.max(0, deadline - Date.now() - 500);
+  const remaining = Math.max(0, deadline - Date.now() - 1000);
   return Math.max(floorMs, Math.min(desiredMs, remaining));
 }
 
@@ -723,7 +723,10 @@ async function runFfmpeg(args, { allowNonZeroExit = false, timeoutMs = 20000 } =
 
 function buildFfmpegHttpInputArgs(url) {
   const args = [
-    '-rw_timeout', '10000000',
+    '-rw_timeout', '30000000',
+    '-reconnect', '1',
+    '-reconnect_streamed', '1',
+    '-reconnect_delay_max', '5',
     '-user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
   ];
 
@@ -749,11 +752,12 @@ async function probeDurationSecondsFromUrl(url, options = {}) {
   ensureTimeBudget(deadline, 4000, 'probing video duration');
   const { stderr } = await runFfmpeg([
     '-hide_banner',
+    '-loglevel', 'error',
     ...buildFfmpegHttpInputArgs(url),
     '-i', url
   ], {
     allowNonZeroExit: true,
-    timeoutMs: timeoutWithinBudget(deadline, 12000)
+    timeoutMs: timeoutWithinBudget(deadline, 15000, 8000)
   });
   const m = stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
   if (!m) return null;
@@ -776,9 +780,10 @@ async function extractThumbnailFromUrl(url, seconds, options = {}) {
     await runFfmpeg([
       '-hide_banner',
       '-loglevel', 'error',
-      '-ss', String(seconds),
+      '-threads', '1',
       ...buildFfmpegHttpInputArgs(url),
       '-i', url,
+      '-ss', String(seconds),
       '-frames:v', '1',
       '-an',
       '-sn',
@@ -786,7 +791,7 @@ async function extractThumbnailFromUrl(url, seconds, options = {}) {
       '-compression_level', '3',
       '-y',
       outPath
-    ], { timeoutMs: timeoutWithinBudget(deadline, 10000) });
+    ], { timeoutMs: timeoutWithinBudget(deadline, 20000, 12000) });
 
     const buf = await fs.readFile(outPath);
     return `data:image/png;base64,${buf.toString('base64')}`;
@@ -932,8 +937,8 @@ async function generateThumbnailPairsFromUrls(urlA, urlB, count, mode, customTim
   const pairs = await mapWithConcurrency(timestamps, 2, async (t, i) => {
     ensureTimeBudget(deadline, 2200, 'generating thumbnail pairs');
     const [dataA, dataB] = await Promise.all([
-      extractThumbnailWithFallback(urlA, t, durationA, { maxAttempts: 1, deadline }),
-      extractThumbnailWithFallback(urlB, t, durationB, { maxAttempts: 1, deadline })
+      extractThumbnailWithFallback(urlA, t, durationA, { maxAttempts: 2, deadline }),
+      extractThumbnailWithFallback(urlB, t, durationB, { maxAttempts: 2, deadline })
     ]);
 
     return {
