@@ -672,9 +672,9 @@ function ensureTimeBudget(deadline, minimumMs, stage) {
   }
 }
 
-function timeoutWithinBudget(deadline, desiredMs, floorMs = 8000) {
+function timeoutWithinBudget(deadline, desiredMs, floorMs = 12000) {
   if (!deadline) return desiredMs;
-  const remaining = Math.max(0, deadline - Date.now() - 1000);
+  const remaining = Math.max(0, deadline - Date.now() - 1500);
   return Math.max(floorMs, Math.min(desiredMs, remaining));
 }
 
@@ -761,7 +761,7 @@ async function probeDurationSecondsFromUrl(url, options = {}) {
     '-i', url
   ], {
     allowNonZeroExit: true,
-    timeoutMs: timeoutWithinBudget(deadline, 15000, 8000)
+    timeoutMs: timeoutWithinBudget(deadline, 25000, 12000)
   });
   const m = stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
   if (!m) return null;
@@ -795,7 +795,7 @@ async function extractThumbnailFromUrl(url, seconds, options = {}) {
       '-compression_level', '3',
       '-y',
       outPath
-    ], { timeoutMs: timeoutWithinBudget(deadline, 20000, 12000) });
+    ], { timeoutMs: timeoutWithinBudget(deadline, 40000, 20000) });
 
     const buf = await fs.readFile(outPath);
     return `data:image/png;base64,${buf.toString('base64')}`;
@@ -892,7 +892,7 @@ async function generateThumbnailsFromUrl(url, count, mode, customTimestamps, opt
     timestamps = pickFallbackTimestamps(count);
   }
 
-  const thumbnails = await mapWithConcurrency(timestamps, 3, async (t, i) => {
+  const thumbnails = await mapWithConcurrency(timestamps, 1, async (t, i) => {
     const { data, actualSeconds } = await extractThumbnailWithFallback(url, t, duration, {
       maxAttempts: 2,
       deadline
@@ -948,7 +948,7 @@ async function generateThumbnailPairsFromUrls(urlA, urlB, count, mode, customTim
     timestamps = pickFallbackTimestamps(count);
   }
 
-  const pairs = await mapWithConcurrency(timestamps, 2, async (t, i) => {
+  const pairs = await mapWithConcurrency(timestamps, 1, async (t, i) => {
     ensureTimeBudget(deadline, 2200, 'generating thumbnail pairs');
     const [dataA, dataB] = await Promise.all([
       extractThumbnailWithFallback(urlA, t, durationA, { maxAttempts: 2, deadline }),
