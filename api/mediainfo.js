@@ -642,6 +642,11 @@ function formatTimestamp(seconds) {
   return `${pad2(hh)}:${pad2(mm)}:${ssFixed}`;
 }
 
+function pickFallbackTimestamps(count) {
+  const defaults = [0, 2, 5, 10, 15, 20, 30, 45, 60];
+  return defaults.slice(0, Math.max(1, count));
+}
+
 function pickRandomTimestamps(durationSeconds, count) {
   const d = Number(durationSeconds);
   if (!Number.isFinite(d) || d <= 0) return [];
@@ -752,7 +757,6 @@ async function probeDurationSecondsFromUrl(url, options = {}) {
   ensureTimeBudget(deadline, 4000, 'probing video duration');
   const { stderr } = await runFfmpeg([
     '-hide_banner',
-    '-loglevel', 'error',
     ...buildFfmpegHttpInputArgs(url),
     '-i', url
   ], {
@@ -863,23 +867,29 @@ async function generateThumbnailsFromUrl(url, count, mode, customTimestamps, opt
   const { deadline } = options;
   ensureTimeBudget(deadline, 3500, 'starting thumbnail generation');
   const duration = await probeDurationSecondsFromUrl(url, { deadline });
-  if (!duration) {
-    throw new Error('Could not determine duration (URL may be unsupported or not a video file)');
-  }
 
   let timestamps = [];
   if (mode === 'timeline') {
-    for (let i = 0; i < count; i++) {
-      const t = ((i + 1) / (count + 1)) * duration;
-      timestamps.push(Math.round(t * 100) / 100);
+    if (Number.isFinite(duration) && duration > 0) {
+      for (let i = 0; i < count; i++) {
+        const t = ((i + 1) / (count + 1)) * duration;
+        timestamps.push(Math.round(t * 100) / 100);
+      }
+    } else {
+      timestamps = pickFallbackTimestamps(count);
     }
   } else if (customTimestamps && Array.isArray(customTimestamps) && customTimestamps.length) {
     timestamps = customTimestamps
       .map((t) => Number(t))
-      .filter((t) => Number.isFinite(t) && t >= 0 && t <= duration)
+      .filter((t) => Number.isFinite(t) && t >= 0 && (!Number.isFinite(duration) || duration <= 0 || t <= duration))
       .slice(0, count);
-  } else {
+    if (!timestamps.length) {
+      timestamps = pickFallbackTimestamps(count);
+    }
+  } else if (Number.isFinite(duration) && duration > 0) {
     timestamps = pickRandomTimestamps(duration, count);
+  } else {
+    timestamps = pickFallbackTimestamps(count);
   }
 
   const thumbnails = await mapWithConcurrency(timestamps, 3, async (t, i) => {
@@ -910,28 +920,32 @@ async function generateThumbnailPairsFromUrls(urlA, urlB, count, mode, customTim
     probeDurationSecondsFromUrl(urlB, { deadline })
   ]);
 
-  if (!durationA || !durationB) {
-    throw new Error('Could not determine duration for one or both URLs');
-  }
-
-  const usableDuration = Math.min(durationA, durationB);
-  if (!Number.isFinite(usableDuration) || usableDuration <= 0) {
-    throw new Error('Invalid usable duration for comparison');
-  }
+  const usableDuration = Number.isFinite(durationA) && Number.isFinite(durationB) && durationA > 0 && durationB > 0
+    ? Math.min(durationA, durationB)
+    : null;
 
   let timestamps = [];
   if (mode === 'timeline') {
-    for (let i = 0; i < count; i++) {
-      const t = ((i + 1) / (count + 1)) * usableDuration;
-      timestamps.push(Math.round(t * 100) / 100);
+    if (Number.isFinite(usableDuration) && usableDuration > 0) {
+      for (let i = 0; i < count; i++) {
+        const t = ((i + 1) / (count + 1)) * usableDuration;
+        timestamps.push(Math.round(t * 100) / 100);
+      }
+    } else {
+      timestamps = pickFallbackTimestamps(count);
     }
   } else if (customTimestamps && Array.isArray(customTimestamps) && customTimestamps.length) {
     timestamps = customTimestamps
       .map((t) => Number(t))
-      .filter((t) => Number.isFinite(t) && t >= 0 && t <= usableDuration)
+      .filter((t) => Number.isFinite(t) && t >= 0 && (!Number.isFinite(usableDuration) || usableDuration <= 0 || t <= usableDuration))
       .slice(0, count);
-  } else {
+    if (!timestamps.length) {
+      timestamps = pickFallbackTimestamps(count);
+    }
+  } else if (Number.isFinite(usableDuration) && usableDuration > 0) {
     timestamps = pickRandomTimestamps(usableDuration, count);
+  } else {
+    timestamps = pickFallbackTimestamps(count);
   }
 
   const pairs = await mapWithConcurrency(timestamps, 2, async (t, i) => {
